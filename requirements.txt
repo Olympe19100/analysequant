@@ -1,9 +1,7 @@
-streamlit
-yfinance
-numpy
 pandas
-plotly
-hmmlearn
+numpy
+yfinance
 scikit-learn
-quantstats
-Pillow
+statsmodels
+plotly
+streamlit
