@@ -9,7 +9,6 @@ from sklearn.metrics import r2_score
 import plotly.graph_objects as go
 import streamlit as st
 import statsmodels.api as sm  # Assurez-vous que cette ligne est présente en haut de votre code
-# from hurst import compute_Hc
 import scipy.stats as stats
 
 # Définir la classe d'analyse
@@ -26,6 +25,8 @@ class ComprehensiveCryptoCommoAnalyzer:
         """
         Télécharge les données historiques pour les tickers spécifiés.
         """
+        st.markdown("### Téléchargement des données historiques 📊")
+        st.write("Nous collectons les données historiques des actifs spécifiés depuis Yahoo Finance.")
         data_dict = {}
         missing_tickers = []
 
@@ -41,7 +42,9 @@ class ComprehensiveCryptoCommoAnalyzer:
             self.returns = self.data.pct_change().dropna()
 
         if missing_tickers:
-            st.write(f"Les tickers suivants n'ont pas pu être téléchargés : {missing_tickers}")
+            st.error(f"Les tickers suivants n'ont pas pu être téléchargés : {missing_tickers}")
+        else:
+            st.success("Toutes les données ont été téléchargées avec succès!")
 
     def prepare_data(self):
         """
@@ -52,11 +55,14 @@ class ComprehensiveCryptoCommoAnalyzer:
         - Détection et gestion des outliers
         - Standardisation
         """
+        st.markdown("### Préparation des Données 🔧")
+        st.write("Nous préparons maintenant les données pour les analyses suivantes, en vérifiant leur qualité et en les rendant utilisables pour les modèles prédictifs.")
         self.handle_missing_data()
         self.check_stationarity()
         self.make_stationary()
         self.detect_outliers()
         self.scale_data()
+        st.success("Préparation des données terminée.")
 
     def handle_missing_data(self, method='linear'):
         """
@@ -69,10 +75,13 @@ class ComprehensiveCryptoCommoAnalyzer:
         """
         Effectue un test de Dickey-Fuller Augmenté (ADF) pour vérifier la stationnarité des séries temporelles.
         """
+        st.write("**Vérification de la stationnarité des séries temporelles**")
         for column in self.data.columns:
             result = adfuller(self.data[column].dropna())
             if result[1] > 0.05:
-                pass  # Transformer la série si non stationnaire
+                st.warning(f"La série pour {column} n'est pas stationnaire.")
+            else:
+                st.success(f"La série pour {column} est stationnaire.")
 
     def make_stationary(self):
         """
@@ -84,11 +93,12 @@ class ComprehensiveCryptoCommoAnalyzer:
         """
         Détection des outliers dans les séries temporelles via la méthode IQR.
         """
+        st.write("**Détection et gestion des outliers**")
         Q1 = self.returns.quantile(0.25)
         Q3 = self.returns.quantile(0.75)
         IQR = Q3 - Q1
         outliers = (self.returns < (Q1 - 1.5 * IQR)) | (self.returns > (Q3 + 1.5 * IQR))
-        return outliers
+        st.write(f"Nombre d'outliers détectés : {outliers.sum().sum()}")
 
     def scale_data(self):
         """
@@ -96,13 +106,14 @@ class ComprehensiveCryptoCommoAnalyzer:
         """
         scaler = StandardScaler()
         self.returns = pd.DataFrame(scaler.fit_transform(self.returns), index=self.returns.index, columns=self.returns.columns)
+        st.write("**Les données ont été standardisées**")
 
     def correlation_analysis(self):
         """
         Analyse de corrélation pour comprendre les relations linéaires entre Bitcoin et les autres actifs.
         """
-        st.write("## Analyse de Corrélation")
-        st.write("Cette analyse permet de comprendre comment les variations de prix de Bitcoin sont associées à celles d'autres actifs financiers. Une corrélation positive indique que deux actifs ont tendance à évoluer dans la même direction.")
+        st.markdown("### Analyse de Corrélation 📈")
+        st.write("Cette analyse permet de comprendre comment les variations de prix de Bitcoin sont associées à celles d'autres actifs financiers.")
         corr_matrix = self.returns.corr()
         fig = go.Figure(data=go.Heatmap(
             z=corr_matrix.values,
@@ -125,14 +136,17 @@ class ComprehensiveCryptoCommoAnalyzer:
         """
         Test de Causalité de Granger pour évaluer si un actif financier peut prédire le mouvement de Bitcoin.
         """
-        st.write("## Causalité de Granger")
-        st.write("Ce test aide à savoir si les rendements d'un actif peuvent être utilisés pour prédire ceux de Bitcoin. Une faible p-value (inférieure à 0,05) indique une causalité significative.")
+        st.markdown("### Causalité de Granger 🔗")
+        st.write("Ce test évalue si les rendements d'un actif peuvent aider à prédire ceux de Bitcoin.")
         causality_results = {}
         for col in self.returns.columns:
             if col != 'BTC-USD':
-                test_result = grangercausalitytests(self.returns[['BTC-USD', col]], maxlag=max_lag, verbose=False)
-                min_p_value = min(result[0]['ssr_ftest'][1] for result in test_result.values())
-                causality_results[col] = min_p_value
+                try:
+                    test_result = grangercausalitytests(self.returns[['BTC-USD', col]], maxlag=max_lag, verbose=False)
+                    min_p_value = min(result[0]['ssr_ftest'][1] for result in test_result.values())
+                    causality_results[col] = min_p_value
+                except ValueError:
+                    st.warning(f"Problème avec le test de Granger pour {col}, peut-être dû à des données insuffisantes.")
 
         causality_df = pd.DataFrame.from_dict(causality_results, orient='index', columns=['p-value'])
         causality_df = causality_df.sort_values('p-value')
@@ -144,8 +158,8 @@ class ComprehensiveCryptoCommoAnalyzer:
         """
         Test de co-intégration pour identifier les actifs qui partagent une relation à long terme avec Bitcoin.
         """
-        st.write("## Analyse de Co-intégration")
-        st.write("La co-intégration indique une relation à long terme entre Bitcoin et d'autres actifs. Cela signifie que même si les prix fluctuent à court terme, ils restent liés à long terme.")
+        st.markdown("### Analyse de Co-intégration 🔗")
+        st.write("La co-intégration indique une relation à long terme entre Bitcoin et d'autres actifs.")
         btc_prices = self.data['BTC-USD']
         other_prices = self.data.drop('BTC-USD', axis=1)
 
@@ -164,8 +178,8 @@ class ComprehensiveCryptoCommoAnalyzer:
         """
         Analyse d'information mutuelle pour détecter les relations non-linéaires entre Bitcoin et les autres actifs.
         """
-        st.write("## Information Mutuelle")
-        st.write("L'information mutuelle permet de détecter des relations non-linéaires entre les actifs. Cela aide à comprendre si un actif peut aider à prédire les variations de Bitcoin, même s'il n'y a pas de relation linéaire.")
+        st.markdown("### Analyse d'Information Mutuelle 🤝")
+        st.write("L'information mutuelle permet de détecter des relations non-linéaires entre les actifs.")
         X = self.returns.drop('BTC-USD', axis=1)
         y = self.returns['BTC-USD']
 
@@ -180,8 +194,8 @@ class ComprehensiveCryptoCommoAnalyzer:
         """
         Effectue un test F pour évaluer la significativité des variables explicatives sur BTC-USD.
         """
-        st.write("## F-Test d'Évaluation des Variables")
-        st.write("Ce test permet d'évaluer si les autres actifs ont un effet significatif sur Bitcoin. Les variables avec une p-value inférieure à 0,05 sont considérées comme significatives.")
+        st.markdown("### F-Test d'Évaluation des Variables 📊")
+        st.write("Ce test permet de savoir si d'autres actifs ont un effet significatif sur Bitcoin.")
         X = self.returns.drop('BTC-USD', axis=1)
         y = self.returns['BTC-USD']
 
@@ -191,6 +205,7 @@ class ComprehensiveCryptoCommoAnalyzer:
         # Régression linéaire multiple avec statsmodels
         model = sm.OLS(y, X).fit()
 
+        st.write("### Résultats du Test F :")
         st.write(model.summary())
 
         # Extraire les p-values associées à chaque variable
@@ -206,13 +221,34 @@ class ComprehensiveCryptoCommoAnalyzer:
 
     def random_forest_model(self):
         """
-        Construire un modèle Forêt Aléatoire basé sur les variables significatives et afficher le R².
+        Construire un modèle Forêt Aléatoire basé sur les meilleures dérivées et inverses des actifs, excepté Bitcoin, et afficher le R².
         """
-        st.write("## Modèle Forêt Aléatoire avec les Variables Significatives")
-        st.write("Le modèle Forêt Aléatoire est utilisé pour prédire les rendements de Bitcoin en utilisant les variables significatives identifiées. Le coefficient de détermination R² indique la proportion de la variabilité expliquée par le modèle.")
+        st.markdown("### Modèle Forêt Aléatoire avec Meilleures Dérivées et Inverses des Actifs 🌲")
+        st.write("Nous construisons un modèle de Forêt Aléatoire pour prédire les rendements de Bitcoin en utilisant les meilleures dérivées et inverses des autres actifs.")
 
-        # Créer une nouvelle matrice de données avec uniquement les variables significatives
-        X = self.returns[self.significant_vars]
+        # Sélectionner les dérivées et inverses les plus corrélés avec BTC-USD
+        best_features = []
+        for col in self.returns.columns:
+            if col != 'BTC-USD':
+                first_derivative = np.gradient(self.returns[col])
+                second_derivative = np.gradient(first_derivative)
+                inverse_returns = self.returns[col].apply(lambda x: 1/x if x != 0 else 0)
+
+                # Calculer la corrélation avec Bitcoin
+                correlation_first = np.corrcoef(first_derivative, self.returns['BTC-USD'])[0, 1]
+                correlation_second = np.corrcoef(second_derivative, self.returns['BTC-USD'])[0, 1]
+                correlation_inverse = np.corrcoef(inverse_returns, self.returns['BTC-USD'])[0, 1]
+
+                # Sélectionner les meilleures dérivées et inverse pour chaque actif
+                if abs(correlation_first) > abs(correlation_second) and abs(correlation_first) > abs(correlation_inverse):
+                    best_features.append(('Première Dérivée', first_derivative))
+                elif abs(correlation_second) > abs(correlation_first) and abs(correlation_second) > abs(correlation_inverse):
+                    best_features.append(('Seconde Dérivée', second_derivative))
+                else:
+                    best_features.append(('Inverse des Rendements', inverse_returns))
+
+        # Créer une matrice de données avec les meilleures dérivées et inverses sélectionnées
+        X = pd.DataFrame({f"{feature_name} de {col}": feature_data for (feature_name, feature_data), col in zip(best_features, self.returns.columns) if col != 'BTC-USD'})
         y = self.returns['BTC-USD']
 
         # Modèle Forêt Aléatoire
@@ -224,57 +260,93 @@ class ComprehensiveCryptoCommoAnalyzer:
 
         # Calcul du R²
         r_squared = r2_score(y, y_pred)
-        st.write(f"R² du modèle Forêt Aléatoire : {r_squared:.3f}")
+        st.write(f"**R² du modèle Forêt Aléatoire :** {r_squared:.3f}")
+        if r_squared > 0.7:
+            st.success("Le modèle explique une grande partie de la variabilité des rendements de Bitcoin.")
+        else:
+            st.warning("Le modèle a une capacité limitée à expliquer la variabilité des rendements de Bitcoin.")
 
-    def hurst_exponent_analysis(self):
+    def derive_and_inverse_analysis(self):
         """
-        Calcule l'exposant de Hurst pour mesurer la persistance ou l'anti-persistence des séries temporelles, manuellement.
+        Effectue des analyses statistiques en utilisant les dérivées des données du Bitcoin ainsi que leurs inverses, ainsi que des autres actifs pour voir leur pouvoir prédictif sur Bitcoin.
         """
-        st.write("## Analyse de l'Exposant de Hurst (Méthode Manuelle)")
-        st.write("L'exposant de Hurst permet de déterminer si une série temporelle est aléatoire (valeur proche de 0,5), persistante (>0,5) ou anti-persistante (<0,5).")
-        series = self.returns['BTC-USD']
-        N = len(series)
-        max_lag = min(20, N // 2)  # Choisir un nombre de lag raisonnable
+        st.markdown("### Analyse des Dérivées et Inverses des Rendements 🚀")
+        st.write("Cette analyse explore les dérivées des rendements de Bitcoin et des autres actifs pour mieux comprendre les variations et comportements.")
 
-        lags = range(2, max_lag)
-        tau = [np.std(np.subtract(series[lag:], series[:-lag])) for lag in lags]
-        reg = np.polyfit(np.log(lags), np.log(tau), 1)
-        H = reg[0]
+        btc_returns = self.returns['BTC-USD']
+        all_derivatives = {}
+        all_inverse_returns = {}
 
-        st.write(f"Exposant de Hurst pour Bitcoin (calculé manuellement) : {H:.3f}")
-        """
-        Calcule l'exposant de Hurst pour mesurer la persistance ou l'anti-persistence des séries temporelles.
-        """
-        st.write("## Analyse de l'Exposant de Hurst")
-        st.write("L'exposant de Hurst permet de déterminer si une série temporelle est aléatoire (valeur proche de 0,5), persistante (>0,5) ou anti-persistante (<0,5).")
-        H, c, data = compute_Hc(self.returns['BTC-USD'], kind='price', simplified=True)
-        st.write(f"Exposant de Hurst pour Bitcoin : {H:.3f}")
+        for col in self.returns.columns:
+            # Calcul des dérivées premières et secondes des rendements
+            returns = self.returns[col]
+            first_derivative = np.gradient(returns)
+            second_derivative = np.gradient(first_derivative)
 
-    def levy_process_analysis(self):
-        """
-        Analyse basée sur le processus de Lévy pour modéliser les rendements de Bitcoin.
-        """
-        st.write("## Analyse des Processus de Lévy")
-        st.write("Les processus de Lévy permettent de modéliser les sauts et les fluctuations irrégulières observées dans les séries financières, fournissant une meilleure représentation des mouvements de prix.")
-        # Simulation basée sur les rendements du Bitcoin
-        levy_path = np.cumsum(self.returns['BTC-USD'].values)  # Utiliser les rendements réels pour la simulation
-        st.line_chart(pd.Series(levy_path, index=self.returns.index), width=800, height=400, use_container_width=True)
-        st.write("Trajectoire simulée basée sur un processus de Lévy pour Bitcoin")
+            # Inverses des rendements (en évitant la division par zéro)
+            inverse_returns = returns.apply(lambda x: 1/x if x != 0 else 0)
 
-    def hawkes_process_analysis(self):
-        """
-        Analyse basée sur un processus de Hawkes pour évaluer les interactions temporelles entre les événements sur les rendements de Bitcoin.
-        """
-        st.write("## Analyse des Processus de Hawkes")
-        st.write("Les processus de Hawkes sont des processus de comptage qui capturent l'auto-excitation, utilisés ici pour modéliser l'influence d'événements passés sur l'arrivée de nouveaux événements.")
-        # Analyse basée sur les rendements du Bitcoin
-        events_series = (self.returns['BTC-USD'] > self.returns['BTC-USD'].quantile(0.95)).astype(int)
-        st.line_chart(events_series.cumsum(), width=800, height=400, use_container_width=True)
-        st.write("Trajectoire cumulée des événements excédant le 95e percentile pour illustrer un processus de Hawkes sur Bitcoin.")
+            all_derivatives[col] = {
+                'Première Dérivée': first_derivative,
+                'Seconde Dérivée': second_derivative,
+                'Inverse des Rendements': inverse_returns
+            }
+            all_inverse_returns[col] = inverse_returns
 
-# Main Streamlit Application
+            # Calcul des statistiques descriptives
+            st.write(f"### Statistiques Descriptives pour {col}")
+            descriptive_stats = pd.DataFrame({
+                'Première Dérivée': first_derivative,
+                'Seconde Dérivée': second_derivative,
+                'Inverse des Rendements': inverse_returns
+            }).describe()
+            st.write(descriptive_stats)
+
+            # Visualisation des dérivées
+            st.line_chart(pd.Series(first_derivative, index=self.returns.index), use_container_width=True)
+            st.write(f"Graphique de la première dérivée des rendements de {col}")
+
+            st.line_chart(pd.Series(second_derivative, index=self.returns.index), use_container_width=True)
+            st.write(f"Graphique de la seconde dérivée des rendements de {col}")
+
+            st.line_chart(pd.Series(inverse_returns, index=self.returns.index), use_container_width=True)
+            st.write(f"Graphique des inverses des rendements de {col}")
+
+        # Effectuer des analyses de corrélation et de prédiction entre les dérivées des autres actifs et Bitcoin
+        st.markdown("### Analyse de Corrélation et de Prédiction entre les Dérivées des Actifs et Bitcoin 🔗")
+        for col in self.returns.columns:
+            if col != 'BTC-USD':
+                st.write(f"### Analyse pour {col}")
+                first_derivative = all_derivatives[col]['Première Dérivée']
+                second_derivative = all_derivatives[col]['Seconde Dérivée']
+                inverse_returns = all_inverse_returns[col]
+
+                # Calculer la corrélation avec Bitcoin
+                correlation_first = np.corrcoef(first_derivative, btc_returns)[0, 1]
+                correlation_second = np.corrcoef(second_derivative, btc_returns)[0, 1]
+                correlation_inverse = np.corrcoef(inverse_returns, btc_returns)[0, 1]
+
+                st.write(f"Corrélation de la première dérivée avec Bitcoin : {correlation_first:.3f}")
+                st.write(f"Corrélation de la seconde dérivée avec Bitcoin : {correlation_second:.3f}")
+                st.write(f"Corrélation des inverses avec Bitcoin : {correlation_inverse:.3f}")
+
+                # Effectuer une régression linéaire pour voir le pouvoir prédictif
+                X = pd.DataFrame({
+                    'Première Dérivée': first_derivative,
+                    'Seconde Dérivée': second_derivative,
+                    'Inverse des Rendements': inverse_returns
+                })
+                X = sm.add_constant(X)
+                y = btc_returns
+
+                model = sm.OLS(y, X).fit()
+                st.write(model.summary())
+
+        st.success("### Analyse terminée pour toutes les dérivées et inverses.")
+
 def main():
-    st.title("Analyse des Relations entre Bitcoin et Autres Actifs Financiers")
+    st.title("💡 Analyse des Relations entre Bitcoin et Autres Actifs Financiers")
+    st.write("Bienvenue dans cette application d'analyse financière qui explore les liens entre Bitcoin et divers autres actifs.")
 
     # Liste des tickers et noms réels des actifs financiers
     tickers = [
@@ -299,38 +371,32 @@ def main():
 
     analyzer = ComprehensiveCryptoCommoAnalyzer(tickers, names, start_date)
 
-    st.header('Téléchargement et Préparation des Données')
+    st.header('1. Téléchargement et Préparation des Données')
     analyzer.fetch_data()
     
-    # Préparation rigoureuse des données sans affichage dans Streamlit
+    # Préparation rigoureuse des données
     analyzer.prepare_data()
 
-    st.subheader('Analyse de Corrélation')
+    st.header('2. Analyse des Corrélations')
     analyzer.correlation_analysis()
 
-    st.subheader('Causalité de Granger')
+    st.header('3. Analyse de la Causalité de Granger')
     analyzer.granger_causality()
 
-    st.subheader('Analyse de Co-intégration')
+    st.header('4. Analyse de la Co-intégration')
     analyzer.cointegration_analysis()
 
-    st.subheader('Analyse d\'Information Mutuelle')
+    st.header('5. Analyse de l'Information Mutuelle')
     analyzer.mutual_information_analysis()
 
-    st.subheader('F-Test pour évaluer les variables explicatives')
+    st.header('6. F-Test pour évaluer les variables explicatives')
     analyzer.f_test_analysis()
 
-    st.subheader('Modèle Forêt Aléatoire avec Variables Significatives')
+    st.header('7. Modèle Forêt Aléatoire avec Variables Significatives')
     analyzer.random_forest_model()
 
-    st.subheader('Analyse de l\'Exposant de Hurst')
-    analyzer.hurst_exponent_analysis()
-
-    st.subheader('Analyse des Processus de Lévy')
-    analyzer.levy_process_analysis()
-
-    st.subheader('Analyse des Processus de Hawkes')
-    analyzer.hawkes_process_analysis()
+    st.header('8. Analyse des Dérivées et Inverses des Rendements des Actifs')
+    analyzer.derive_and_inverse_analysis()
 
 if __name__ == "__main__":
     main()
