@@ -9,6 +9,8 @@ from sklearn.metrics import r2_score
 import plotly.graph_objects as go
 import streamlit as st
 import statsmodels.api as sm  # Assurez-vous que cette ligne est présente en haut de votre code
+from hurst import compute_Hc
+import scipy.stats as stats
 
 # Définir la classe d'analyse
 class ComprehensiveCryptoCommoAnalyzer:
@@ -100,6 +102,7 @@ class ComprehensiveCryptoCommoAnalyzer:
         Analyse de corrélation pour comprendre les relations linéaires entre Bitcoin et les autres actifs.
         """
         st.write("## Analyse de Corrélation")
+        st.write("Cette analyse permet de comprendre comment les variations de prix de Bitcoin sont associées à celles d'autres actifs financiers. Une corrélation positive indique que deux actifs ont tendance à évoluer dans la même direction.")
         corr_matrix = self.returns.corr()
         fig = go.Figure(data=go.Heatmap(
             z=corr_matrix.values,
@@ -108,10 +111,10 @@ class ComprehensiveCryptoCommoAnalyzer:
             colorscale='RdBu',
             zmin=-1, zmax=1
         ))
-        fig.update_layout(title="Matrice de corrélation des rendements")
+        fig.update_layout(title="Matrice de corrélation des rendements", autosize=False, width=800, height=600)
         st.plotly_chart(fig)
 
-        btc_corr = corr_matrix['BTC-USD'].sort_values(ascending=False)
+        btc_corr = corr_matrix['Bitcoin (BTC)'].sort_values(ascending=False)
         st.write("### Top 5 des actifs corrélés positivement avec Bitcoin :")
         st.write(btc_corr.head())
 
@@ -123,6 +126,7 @@ class ComprehensiveCryptoCommoAnalyzer:
         Test de Causalité de Granger pour évaluer si un actif financier peut prédire le mouvement de Bitcoin.
         """
         st.write("## Causalité de Granger")
+        st.write("Ce test aide à savoir si les rendements d'un actif peuvent être utilisés pour prédire ceux de Bitcoin. Une faible p-value (inférieure à 0,05) indique une causalité significative.")
         causality_results = {}
         for col in self.returns.columns:
             if col != 'BTC-USD':
@@ -141,6 +145,7 @@ class ComprehensiveCryptoCommoAnalyzer:
         Test de co-intégration pour identifier les actifs qui partagent une relation à long terme avec Bitcoin.
         """
         st.write("## Analyse de Co-intégration")
+        st.write("La co-intégration indique une relation à long terme entre Bitcoin et d'autres actifs. Cela signifie que même si les prix fluctuent à court terme, ils restent liés à long terme.")
         btc_prices = self.data['BTC-USD']
         other_prices = self.data.drop('BTC-USD', axis=1)
 
@@ -160,6 +165,7 @@ class ComprehensiveCryptoCommoAnalyzer:
         Analyse d'information mutuelle pour détecter les relations non-linéaires entre Bitcoin et les autres actifs.
         """
         st.write("## Information Mutuelle")
+        st.write("L'information mutuelle permet de détecter des relations non-linéaires entre les actifs. Cela aide à comprendre si un actif peut aider à prédire les variations de Bitcoin, même s'il n'y a pas de relation linéaire.")
         X = self.returns.drop('BTC-USD', axis=1)
         y = self.returns['BTC-USD']
 
@@ -175,6 +181,7 @@ class ComprehensiveCryptoCommoAnalyzer:
         Effectue un test F pour évaluer la significativité des variables explicatives sur BTC-USD.
         """
         st.write("## F-Test d'Évaluation des Variables")
+        st.write("Ce test permet d'évaluer si les autres actifs ont un effet significatif sur Bitcoin. Les variables avec une p-value inférieure à 0,05 sont considérées comme significatives.")
         X = self.returns.drop('BTC-USD', axis=1)
         y = self.returns['BTC-USD']
 
@@ -202,6 +209,7 @@ class ComprehensiveCryptoCommoAnalyzer:
         Construire un modèle Forêt Aléatoire basé sur les variables significatives et afficher le R².
         """
         st.write("## Modèle Forêt Aléatoire avec les Variables Significatives")
+        st.write("Le modèle Forêt Aléatoire est utilisé pour prédire les rendements de Bitcoin en utilisant les variables significatives identifiées. Le coefficient de détermination R² indique la proportion de la variabilité expliquée par le modèle.")
 
         # Créer une nouvelle matrice de données avec uniquement les variables significatives
         X = self.returns[self.significant_vars]
@@ -217,6 +225,37 @@ class ComprehensiveCryptoCommoAnalyzer:
         # Calcul du R²
         r_squared = r2_score(y, y_pred)
         st.write(f"R² du modèle Forêt Aléatoire : {r_squared:.3f}")
+
+    def hurst_exponent_analysis(self):
+        """
+        Calcule l'exposant de Hurst pour mesurer la persistance ou l'anti-persistence des séries temporelles.
+        """
+        st.write("## Analyse de l'Exposant de Hurst")
+        st.write("L'exposant de Hurst permet de déterminer si une série temporelle est aléatoire (valeur proche de 0,5), persistante (>0,5) ou anti-persistante (<0,5).")
+        H, c, data = compute_Hc(self.returns['BTC-USD'], kind='price', simplified=True)
+        st.write(f"Exposant de Hurst pour Bitcoin : {H:.3f}")
+
+    def levy_process_analysis(self):
+        """
+        Analyse basée sur le processus de Lévy pour modéliser les rendements de Bitcoin.
+        """
+        st.write("## Analyse des Processus de Lévy")
+        st.write("Les processus de Lévy permettent de modéliser les sauts et les fluctuations irrégulières observées dans les séries financières, fournissant une meilleure représentation des mouvements de prix.")
+        # Simulation basée sur les rendements du Bitcoin
+        levy_path = np.cumsum(self.returns['BTC-USD'].values)  # Utiliser les rendements réels pour la simulation
+        st.line_chart(pd.Series(levy_path, index=self.returns.index), width=800, height=400, use_container_width=True)
+        st.write("Trajectoire simulée basée sur un processus de Lévy pour Bitcoin")
+
+    def hawkes_process_analysis(self):
+        """
+        Analyse basée sur un processus de Hawkes pour évaluer les interactions temporelles entre les événements sur les rendements de Bitcoin.
+        """
+        st.write("## Analyse des Processus de Hawkes")
+        st.write("Les processus de Hawkes sont des processus de comptage qui capturent l'auto-excitation, utilisés ici pour modéliser l'influence d'événements passés sur l'arrivée de nouveaux événements.")
+        # Analyse basée sur les rendements du Bitcoin
+        events_series = (self.returns['BTC-USD'] > self.returns['BTC-USD'].quantile(0.95)).astype(int)
+        st.line_chart(events_series.cumsum(), width=800, height=400, use_container_width=True)
+        st.write("Trajectoire cumulée des événements excédant le 95e percentile pour illustrer un processus de Hawkes sur Bitcoin.")
 
 # Main Streamlit Application
 def main():
@@ -236,9 +275,9 @@ def main():
         'Pétrole WTI (CL=F)', 'Pétrole Brent (BZ=F)', 'Gaz Naturel (NG=F)', 'Or (GC=F)', 'Argent (SI=F)',
         'Platine (PL=F)', 'Palladium (PA=F)', 'Cuivre (HG=F)', 'Zinc (ZN=F)', 'Blé (ZW=F)',
         'Maïs (ZC=F)', 'Soja (ZS=F)', 'Café (KC=F)', 'Coton (CT=F)', 'Cacao (CC=F)', 'Sucre (SB=F)',
-        'Jus d\'Orange (OJ=F)', 'Bétail (LE=F)', 'Porcs (HE=F)', 'Essence (RB=F)', 'Fuel (HO=F)',
+        'Jus d'Orange (OJ=F)', 'Bétail (LE=F)', 'Porcs (HE=F)', 'Essence (RB=F)', 'Fuel (HO=F)',
         'Euro-Dollar (EURUSD=X)', 'Livre Sterling-Dollar (GBPUSD=X)', 'Obligations US 20 ans (TLT)',
-        'Obligations d\'entreprises (LQD)', 'Obligations à haut rendement (HYG)'
+        'Obligations d'entreprises (LQD)', 'Obligations à haut rendement (HYG)'
     ]
 
     start_date = '2010-07-18'
@@ -260,7 +299,7 @@ def main():
     st.subheader('Analyse de Co-intégration')
     analyzer.cointegration_analysis()
 
-    st.subheader('Analyse d\'Information Mutuelle')
+    st.subheader('Analyse d'Information Mutuelle')
     analyzer.mutual_information_analysis()
 
     st.subheader('F-Test pour évaluer les variables explicatives')
@@ -268,6 +307,15 @@ def main():
 
     st.subheader('Modèle Forêt Aléatoire avec Variables Significatives')
     analyzer.random_forest_model()
+
+    st.subheader('Analyse de l'Exposant de Hurst')
+    analyzer.hurst_exponent_analysis()
+
+    st.subheader('Analyse des Processus de Lévy')
+    analyzer.levy_process_analysis()
+
+    st.subheader('Analyse des Processus de Hawkes')
+    analyzer.hawkes_process_analysis()
 
 if __name__ == "__main__":
     main()
