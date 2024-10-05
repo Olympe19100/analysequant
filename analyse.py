@@ -228,15 +228,20 @@ class ComprehensiveCryptoCommoAnalyzer:
 
     def hurst_exponent_analysis(self):
         """
-        Calcule l'exposant de Hurst pour mesurer la persistance ou l'anti-persistence des séries temporelles.
+        Calcule l'exposant de Hurst pour mesurer la persistance ou l'anti-persistence des séries temporelles, manuellement.
         """
-        st.write("## Analyse de l'Exposant de Hurst")
+        st.write("## Analyse de l'Exposant de Hurst (Méthode Manuelle)")
         st.write("L'exposant de Hurst permet de déterminer si une série temporelle est aléatoire (valeur proche de 0,5), persistante (>0,5) ou anti-persistante (<0,5).")
-        try:
-            H, c, data = compute_Hc(self.returns['BTC-USD'], kind='price', simplified=True)
-            st.write(f"Exposant de Hurst pour Bitcoin : {H:.3f}")
-        except FloatingPointError:
-            st.write("Erreur lors du calcul de l'exposant de Hurst en raison de valeurs numériques problématiques.")
+        series = self.returns['BTC-USD']
+        N = len(series)
+        max_lag = min(20, N // 2)  # Choisir un nombre de lag raisonnable
+
+        lags = range(2, max_lag)
+        tau = [np.std(np.subtract(series[lag:], series[:-lag])) for lag in lags]
+        reg = np.polyfit(np.log(lags), np.log(tau), 1)
+        H = reg[0]
+
+        st.write(f"Exposant de Hurst pour Bitcoin (calculé manuellement) : {H:.3f}")
         """
         Calcule l'exposant de Hurst pour mesurer la persistance ou l'anti-persistence des séries temporelles.
         """
