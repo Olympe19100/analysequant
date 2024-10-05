@@ -386,7 +386,7 @@ def main():
     st.header('4. Analyse de la Co-intégration')
     analyzer.cointegration_analysis()
 
-    st.header('5. Analyse de l'Information Mutuelle')
+    st.header('5. Analyse de l\'Information Mutuelle')
     analyzer.mutual_information_analysis()
 
     st.header('6. F-Test pour évaluer les variables explicatives')
