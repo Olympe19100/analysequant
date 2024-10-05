@@ -275,9 +275,9 @@ def main():
         'Pétrole WTI (CL=F)', 'Pétrole Brent (BZ=F)', 'Gaz Naturel (NG=F)', 'Or (GC=F)', 'Argent (SI=F)',
         'Platine (PL=F)', 'Palladium (PA=F)', 'Cuivre (HG=F)', 'Zinc (ZN=F)', 'Blé (ZW=F)',
         'Maïs (ZC=F)', 'Soja (ZS=F)', 'Café (KC=F)', 'Coton (CT=F)', 'Cacao (CC=F)', 'Sucre (SB=F)',
-        'Jus d'Orange (OJ=F)', 'Bétail (LE=F)', 'Porcs (HE=F)', 'Essence (RB=F)', 'Fuel (HO=F)',
+        'Jus d\'Orange (OJ=F)', 'Bétail (LE=F)', 'Porcs (HE=F)', 'Essence (RB=F)', 'Fuel (HO=F)',
         'Euro-Dollar (EURUSD=X)', 'Livre Sterling-Dollar (GBPUSD=X)', 'Obligations US 20 ans (TLT)',
-        'Obligations d'entreprises (LQD)', 'Obligations à haut rendement (HYG)'
+        'Obligations d\'entreprises (LQD)', 'Obligations à haut rendement (HYG)'
     ]
 
     start_date = '2010-07-18'
@@ -299,7 +299,7 @@ def main():
     st.subheader('Analyse de Co-intégration')
     analyzer.cointegration_analysis()
 
-    st.subheader('Analyse d'Information Mutuelle')
+    st.subheader('Analyse d\'Information Mutuelle')
     analyzer.mutual_information_analysis()
 
     st.subheader('F-Test pour évaluer les variables explicatives')
@@ -308,7 +308,7 @@ def main():
     st.subheader('Modèle Forêt Aléatoire avec Variables Significatives')
     analyzer.random_forest_model()
 
-    st.subheader('Analyse de l'Exposant de Hurst')
+    st.subheader('Analyse de l\'Exposant de Hurst')
     analyzer.hurst_exponent_analysis()
 
     st.subheader('Analyse des Processus de Lévy')
