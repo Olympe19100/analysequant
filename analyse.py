@@ -106,15 +106,15 @@ class ComprehensiveCryptoCommoAnalyzer:
         corr_matrix = self.returns.corr()
         fig = go.Figure(data=go.Heatmap(
             z=corr_matrix.values,
-            x=self.names,
-            y=self.names,
+            x=self.returns.columns,
+            y=self.returns.columns,
             colorscale='RdBu',
             zmin=-1, zmax=1
         ))
         fig.update_layout(title="Matrice de corrélation des rendements", autosize=False, width=800, height=600)
         st.plotly_chart(fig)
 
-        btc_corr = corr_matrix['Bitcoin (BTC)'].sort_values(ascending=False)
+        btc_corr = corr_matrix['BTC-USD'].sort_values(ascending=False)
         st.write("### Top 5 des actifs corrélés positivement avec Bitcoin :")
         st.write(btc_corr.head())
 
@@ -170,7 +170,7 @@ class ComprehensiveCryptoCommoAnalyzer:
         y = self.returns['BTC-USD']
 
         mi_scores = mutual_info_regression(X, y)
-        mi_df = pd.DataFrame({'Variable': self.names[1:], 'MI Score': mi_scores})
+        mi_df = pd.DataFrame({'Variable': X.columns, 'MI Score': mi_scores})
         mi_df = mi_df.sort_values('MI Score', ascending=False)
 
         st.write("### Top 5 des actifs avec la plus forte dépendance avec Bitcoin :")
