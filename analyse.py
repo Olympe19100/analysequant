@@ -76,17 +76,18 @@ class ComprehensiveCryptoAnalyzer:
             try:
                 data = yf.download(ticker, start=self.start_date)['Adj Close'].dropna()
                 data_dict[ticker] = data
+                st.write(f"Données téléchargées pour {name}")
             except Exception as e:
                 missing_tickers.append(ticker)
+                st.error(f"Erreur lors du téléchargement de {name}: {str(e)}")
         
         if data_dict:
             self.data = pd.DataFrame(data_dict)
             self.returns = self.data.pct_change().dropna()
             self.latest_prices = self.data.iloc[-1]
-            if missing_tickers:
-                st.error(f"Les tickers suivants n'ont pas pu être téléchargés : {missing_tickers}")
-            else:
-                st.success("Toutes les données ont été téléchargées avec succès!")
+            st.success(f"Données téléchargées avec succès. Shape: {self.data.shape}")
+        else:
+            st.error("Aucune donnée n'a pu être téléchargée.")
 
     def prepare_data(self):
         """Prépare les données en gérant les valeurs manquantes, vérifiant la stationnarité, et normalisant les données."""
@@ -100,26 +101,30 @@ class ComprehensiveCryptoAnalyzer:
 
     def handle_missing_data(self, method='linear'):
         """Gère les valeurs manquantes dans les données."""
+        st.write("Gestion des valeurs manquantes...")
         self.data = self.data.interpolate(method=method).dropna()
         self.returns = self.data.pct_change().dropna()
+        st.write(f"Valeurs manquantes traitées. Nouvelle shape: {self.data.shape}")
 
     def check_stationarity(self):
         """Vérifie la stationnarité des séries temporelles."""
-        st.write("**Vérification de la stationnarité des séries temporelles**")
+        st.write("Vérification de la stationnarité des séries temporelles")
         for column in self.data.columns:
             result = adfuller(self.data[column].dropna())
             if result[1] > 0.05:
-                st.warning(f"La série pour {column} n'est pas stationnaire.")
+                st.warning(f"La série pour {column} n'est pas stationnaire (p-value: {result[1]:.4f}).")
             else:
-                st.success(f"La série pour {column} est stationnaire.")
+                st.success(f"La série pour {column} est stationnaire (p-value: {result[1]:.4f}).")
 
     def make_stationary(self):
         """Rend les séries temporelles stationnaires."""
+        st.write("Transformation des séries en séries stationnaires...")
         self.returns = self.data.diff().dropna()
+        st.write(f"Séries rendues stationnaires. Nouvelle shape: {self.returns.shape}")
 
     def detect_outliers(self):
         """Détecte les valeurs aberrantes dans les données."""
-        st.write("**Détection et gestion des outliers**")
+        st.write("Détection des outliers...")
         Q1 = self.returns.quantile(0.25)
         Q3 = self.returns.quantile(0.75)
         IQR = Q3 - Q1
@@ -128,13 +133,14 @@ class ComprehensiveCryptoAnalyzer:
 
     def scale_data(self):
         """Normalise les données."""
+        st.write("Normalisation des données...")
         scaler = StandardScaler()
         self.returns = pd.DataFrame(scaler.fit_transform(self.returns), index=self.returns.index, columns=self.returns.columns)
         
         min_max_scaler = MinMaxScaler()
         self.data = pd.DataFrame(min_max_scaler.fit_transform(self.data), index=self.data.index, columns=self.data.columns)
         
-        st.write("**Les données ont été standardisées et mises à la même échelle**")
+        st.write("Les données ont été standardisées et mises à la même échelle")
 
     def analyze_cointegration(self):
         """Analyse la cointégration entre Bitcoin et les autres cryptomonnaies."""
@@ -146,9 +152,12 @@ class ComprehensiveCryptoAnalyzer:
                 if pvalue < 0.05:
                     st.info(f"**{col} est co-intégré avec Bitcoin (p-value={pvalue:.4f})**")
                     self.apply_kalman_filter('BTC-USD', col)
+                else:
+                    st.write(f"{col} n'est pas co-intégré avec Bitcoin (p-value={pvalue:.4f})")
 
     def apply_kalman_filter(self, asset1, asset2):
         """Applique un filtre de Kalman pour estimer dynamiquement alpha et beta."""
+        st.write(f"Application du filtre de Kalman pour {asset1} et {asset2}...")
         delta = 1e-5
         trans_cov = delta / (1 - delta) * np.eye(2)
         obs_mat = np.vstack([self.data[asset2], np.ones(self.data[asset2].shape)]).T[:, np.newaxis]
@@ -167,9 +176,11 @@ class ComprehensiveCryptoAnalyzer:
             'beta': state_means[:, 0],
             'alpha': state_means[:, 1]
         }
+        st.write(f"Filtre de Kalman appliqué pour {asset1} et {asset2}")
 
     def generate_trading_signals(self, asset1, asset2, investment_amount, threshold=2):
         """Génère des signaux de trading basés sur les résultats du filtre de Kalman."""
+        st.write(f"Génération des signaux de trading pour {asset1} et {asset2}...")
         beta = self.kalman_results[asset2]['beta'][-1]
         alpha = self.kalman_results[asset2]['alpha'][-1]
         
@@ -193,7 +204,12 @@ class ComprehensiveCryptoAnalyzer:
 
     def run_analysis(self, investment_amount):
         """Exécute l'analyse complète."""
+        st.write("Début de l'analyse...")
         self.fetch_data()
+        if self.data is None or self.data.empty:
+            st.error("Pas de données à analyser. Arrêt de l'analyse.")
+            return
+        
         self.prepare_data()
         self.analyze_cointegration()
         
@@ -248,6 +264,7 @@ def main():
         <ol>
             <li>Choisissez la date de début de l'analyse dans le menu latéral.</li>
             <li>Entrez le montant que vous souhaitez investir.</li>
+            <li>Cliquez sur "Lancer l'analyse" pour commencer.</li>
             <li>Examinez les résultats de l'analyse pour chaque paire de cryptomonnaies.</li>
             <li>Utilisez les recommandations et les graphiques pour prendre des décisions d'investissement éclairées.</li>
         </ol>
@@ -266,10 +283,12 @@ def main():
     
     # Exécution de l'analyse
     if st.button("Lancer l'analyse"):
-        with st.spinner("Analyse en cours... Veuillez patienter."):
-            analyzer.run_analysis(investment_amount)
-        
-        st.success("Analyse terminée !")
+        try:
+            with st.spinner("Analyse en cours... Veuillez patienter."):
+                analyzer.run_analysis(investment_amount)
+            st.success("Analyse terminée !")
+        except Exception as e:
+            st.error(f"Une erreur s'est produite lors de l'analyse : {str(e)}")
         
         st.markdown("""
         <div class="explanation">
