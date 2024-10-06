@@ -9,7 +9,7 @@ from sklearn.linear_model import Ridge
 from sklearn.metrics import r2_score
 import plotly.graph_objects as go
 import streamlit as st
-import statsmodels.api as sm  # Assurez-vous que cette ligne est présente en Ahaut de votre code
+import statsmodels.api as sm  # Assurez-vous que cette ligne est présente en haut de votre code
 import scipy.stats as stats
 
 # Définir la classe d'analyse
@@ -235,3 +235,13 @@ def main():
     analyzer.fetch_data()
     
     # Préparation rigoureuse des données
+    analyzer.prepare_data()
+
+    st.header('2. Modèle Forêt Aléatoire avec Variables Significatives')
+    analyzer.random_forest_model()
+
+    st.header('3. Visualisation des Relations Statistiquement Significatives')
+    analyzer.plot_significant_relationships()
+
+if __name__ == "__main__":
+    main()
