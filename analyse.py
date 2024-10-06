@@ -3,6 +3,8 @@ import numpy as np
 import yfinance as yf
 from sklearn.preprocessing import StandardScaler, MinMaxScaler
 from statsmodels.tsa.stattools import adfuller, coint
+from sklearn.ensemble import RandomForestRegressor
+from sklearn.metrics import r2_score
 import plotly.graph_objects as go
 import streamlit as st
 from statsmodels.regression.linear_model import OLS
@@ -64,6 +66,10 @@ class ComprehensiveCryptoAnalyzer:
         self.data = None
         self.returns = None
         self.latest_prices = None
+        self.ratios = {}
+        self.signals = {}
+        self.cointegration_results = {}
+        self.hedging_ratios = {}
 
     def fetch_data(self):
         """Télécharge les données historiques pour toutes les cryptomonnaies."""
@@ -134,92 +140,126 @@ class ComprehensiveCryptoAnalyzer:
         
         st.write("**Les données ont été standardisées et mises à la même échelle**")
 
+    def calculate_ratios(self):
+        """Calcule les ratios entre Bitcoin et les autres cryptomonnaies."""
+        st.markdown('<p class="subheader">Calcul des ratios 📊</p>', unsafe_allow_html=True)
+        for col in self.data.columns:
+            if col != 'BTC-USD':
+                self.ratios[col] = self.data['BTC-USD'] / self.data[col]
+                st.write(f"Ratio calculé pour BTC/{col}")
+
+    def generate_signals(self):
+        """Génère des signaux basés sur les ratios et leurs moyennes mobiles."""
+        st.markdown('<p class="subheader">Génération des signaux de trading 🚦</p>', unsafe_allow_html=True)
+        for col, ratio in self.ratios.items():
+            short_ma = ratio.rolling(window=10).mean()
+            long_ma = ratio.rolling(window=30).mean()
+            
+            buy_signal = (short_ma > long_ma) & (short_ma.shift(1) <= long_ma.shift(1))
+            sell_signal = (short_ma < long_ma) & (short_ma.shift(1) >= long_ma.shift(1))
+            
+            self.signals[col] = pd.DataFrame({'Buy': buy_signal, 'Sell': sell_signal})
+            
+            st.write(f"Signaux générés pour BTC/{col}")
+
+    def analyze_cointegration(self):
+        """Analyse la cointégration entre Bitcoin et les autres cryptomonnaies."""
+        st.markdown('<p class="subheader">Analyse de cointégration 🔗</p>', unsafe_allow_html=True)
+        for col in self.data.columns:
+            if col != 'BTC-USD':
+                _, pvalue, _ = coint(self.data['BTC-USD'], self.data[col])
+                self.cointegration_results[col] = pvalue
+                if pvalue < 0.05:
+                    st.info(f"**{col} est co-intégré avec Bitcoin (p-value={pvalue:.4f})**")
+                    self.calculate_hedging_ratio('BTC-USD', col)
+
     def calculate_hedging_ratio(self, asset1, asset2):
         """Calcule le ratio de couverture entre deux actifs."""
         model = OLS(self.data[asset1], self.data[asset2]).fit()
-        return model.params[0]
+        self.hedging_ratios[asset2] = model.params[0]
+        st.write(f"Ratio de couverture pour {asset1}/{asset2} : {model.params[0]:.4f}")
 
-    def analyze_relationships(self, investment_amount):
-        """Analyse les relations entre Bitcoin et les autres cryptomonnaies."""
-        st.markdown('<p class="subheader">Analyse des relations entre cryptomonnaies 📊</p>', unsafe_allow_html=True)
+    def random_forest_model(self):
+        """Crée un modèle de forêt aléatoire pour prédire les rendements de Bitcoin."""
+        st.markdown('<p class="subheader">Modèle Forêt Aléatoire 🌲</p>', unsafe_allow_html=True)
         
+        features = self.returns.drop('BTC-USD', axis=1)
+        target = self.returns['BTC-USD']
+        
+        rf_model = RandomForestRegressor(n_estimators=100, random_state=42)
+        rf_model.fit(features, target)
+        
+        predictions = rf_model.predict(features)
+        r2 = r2_score(target, predictions)
+        
+        st.write(f"R2 score du modèle : {r2:.4f}")
+        
+        feature_importance = pd.Series(rf_model.feature_importances_, index=features.columns).sort_values(ascending=False)
+        st.write("Importance des caractéristiques :")
+        st.write(feature_importance)
+
+    def plot_results(self):
+        """Trace les graphiques des prix, ratios et signaux."""
+        st.markdown('<p class="subheader">Visualisation des Résultats 📈</p>', unsafe_allow_html=True)
         for col in self.data.columns:
             if col != 'BTC-USD':
-                # Test de cointégration
-                _, pvalue, _ = coint(self.data['BTC-USD'], self.data[col])
+                fig = go.Figure()
+                fig.add_trace(go.Scatter(x=self.data.index, y=self.data['BTC-USD'], mode='lines', name='Bitcoin'))
+                fig.add_trace(go.Scatter(x=self.data.index, y=self.data[col], mode='lines', name=col))
+                fig.add_trace(go.Scatter(x=self.ratios[col].index, y=self.ratios[col], mode='lines', name=f'Ratio BTC/{col}', yaxis="y2"))
                 
-                if pvalue < 0.05:
-                    st.info(f"**{col} est co-intégré avec Bitcoin (p-value={pvalue:.4f})**")
-                    
-                    # Calcul du hedging ratio
-                    hedging_ratio = self.calculate_hedging_ratio('BTC-USD', col)
-                    
-                    # Calcul du spread
-                    spread = self.data['BTC-USD'] - hedging_ratio * self.data[col]
-                    
-                    # Calcul des signaux basés sur le spread
-                    mean_spread = spread.mean()
-                    std_spread = spread.std()
-                    
-                    current_spread = self.latest_prices['BTC-USD'] - hedging_ratio * self.latest_prices[col]
-                    
-                    # Détermination de l'action à prendre
-                    if current_spread > mean_spread + std_spread:
-                        action_btc = "Vendre"
-                        action_other = "Acheter"
-                    elif current_spread < mean_spread - std_spread:
-                        action_btc = "Acheter"
-                        action_other = "Vendre"
-                    else:
-                        action_btc = "Conserver"
-                        action_other = "Conserver"
-                    
-                    # Calcul des unités à acheter/vendre
-                    btc_price = self.latest_prices['BTC-USD']
-                    other_price = self.latest_prices[col]
-                    
-                    if action_btc != "Conserver":
-                        btc_units = (investment_amount / 2) / btc_price
-                        other_units = (investment_amount / 2) / other_price
-                    else:
-                        btc_units = other_units = 0
-                    
-                    # Affichage des résultats
-                    st.markdown(f"""
-                    <div class='info-box'>
-                        <h3>Analyse pour la paire Bitcoin - {self.names[self.tickers.index(col)]} :</h3>
-                        <p><strong>Hedging Ratio :</strong> {hedging_ratio:.4f}<br>
-                        <em>Interprétation : Pour chaque unité de Bitcoin, vous devriez détenir {hedging_ratio:.4f} unités de {self.names[self.tickers.index(col)]} pour une couverture optimale.</em></p>
-                        <p><strong>Spread actuel :</strong> {current_spread:.4f}<br>
-                        <strong>Spread moyen :</strong> {mean_spread:.4f}<br>
-                        <strong>Écart-type du spread :</strong> {std_spread:.4f}<br>
-                        <em>Interprétation : Le spread actuel est {'au-dessus' if current_spread > mean_spread else 'en-dessous'} de la moyenne, 
-                        indiquant que Bitcoin est potentiellement {'surévalué' if current_spread > mean_spread else 'sous-évalué'} par rapport à {self.names[self.tickers.index(col)]}.</em></p>
-                        <p><strong>Recommandation :</strong><br>
-                        - {action_btc} Bitcoin (BTC)<br>
-                        - {action_other} {self.names[self.tickers.index(col)]}</p>
-                        <p><strong>Pour un investissement de {investment_amount:.2f}$ :</strong><br>
-                        - {btc_units:.4f} unités de Bitcoin (BTC)<br>
-                        - {other_units:.4f} unités de {self.names[self.tickers.index(col)]}</p>
-                        <p><strong>Prix actuels :</strong><br>
-                        - Bitcoin (BTC) : {btc_price:.2f}$<br>
-                        - {self.names[self.tickers.index(col)]} : {other_price:.2f}$</p>
-                    </div>
-                    """, unsafe_allow_html=True)
-                    
-                    # Graphique
-                    fig = go.Figure()
-                    fig.add_trace(go.Scatter(x=self.data.index, y=self.data['BTC-USD'], mode='lines', name='Bitcoin (BTC)'))
-                    fig.add_trace(go.Scatter(x=self.data.index, y=self.data[col], mode='lines', name=self.names[self.tickers.index(col)]))
-                    fig.add_trace(go.Scatter(x=self.data.index, y=spread, mode='lines', name='Spread'))
-                    fig.update_layout(title=f"Prix et Spread pour Bitcoin et {self.names[self.tickers.index(col)]}", 
-                                      xaxis_title="Date", yaxis_title="Prix / Spread")
-                    st.plotly_chart(fig)
+                # Ajout des signaux d'achat et de vente
+                buy_signals = self.signals[col]['Buy']
+                sell_signals = self.signals[col]['Sell']
+                fig.add_trace(go.Scatter(x=buy_signals[buy_signals].index, y=self.data.loc[buy_signals[buy_signals].index, 'BTC-USD'],
+                                         mode='markers', name='Signal d\'achat', marker=dict(symbol='triangle-up', size=10, color='green')))
+                fig.add_trace(go.Scatter(x=sell_signals[sell_signals].index, y=self.data.loc[sell_signals[sell_signals].index, 'BTC-USD'],
+                                         mode='markers', name='Signal de vente', marker=dict(symbol='triangle-down', size=10, color='red')))
+                
+                fig.update_layout(title=f"Prix, Ratio et Signaux pour BTC/{col}",
+                                  xaxis_title="Date",
+                                  yaxis_title="Prix",
+                                  yaxis2=dict(title="Ratio", overlaying="y", side="right"))
+                
+                st.plotly_chart(fig)
+
+    def run_analysis(self, investment_amount):
+        """Exécute l'analyse complète."""
+        self.fetch_data()
+        self.prepare_data()
+        self.calculate_ratios()
+        self.generate_signals()
+        self.analyze_cointegration()
+        self.random_forest_model()
+        self.plot_results()
+        
+        st.markdown('<p class="subheader">Résumé de l'Analyse et Recommandations 📊</p>', unsafe_allow_html=True)
+        for col in self.data.columns:
+            if col != 'BTC-USD':
+                latest_signal = self.signals[col].iloc[-1]
+                action = "Acheter" if latest_signal['Buy'] else "Vendre" if latest_signal['Sell'] else "Conserver"
+                
+                cointegrated = self.cointegration_results.get(col, 1) < 0.05
+                hedging_ratio = self.hedging_ratios.get(col, None)
+                
+                st.markdown(f"""
+                <div class='info-box'>
+                    <h3>Analyse pour la paire Bitcoin - {self.names[self.tickers.index(col)]} :</h3>
+                    <p><strong>Signal actuel :</strong> {action} Bitcoin</p>
+                    <p><strong>Cointegration :</strong> {'Oui' if cointegrated else 'Non'}</p>
+                    {f"<p><strong>Ratio de couverture :</strong> {hedging_ratio:.4f}</p>" if hedging_ratio else ""}
+                    <p><strong>Recommandation :</strong><br>
+                    {action} Bitcoin pour un montant de {investment_amount/2:.2f}$<br>
+                    {"Acheter" if action == "Vendre" else "Vendre"} {self.names[self.tickers.index(col)]} pour un montant de {investment_amount/2:.2f}$</p>
+                    <p><strong>Prix actuels :</strong><br>
+                    Bitcoin (BTC) : {self.latest_prices['BTC-USD']:.2f}$<br>
+                    {self.names[self.tickers.index(col)]} : {self.latest_prices[col]:.2f}$</p>
+                </div>
+                """, unsafe_allow_html=True)
 
 def main():
-    st.markdown('<p class="big-font">📊 Analyse Crypto Avancée avec Hedging Ratio</p>', unsafe_allow_html=True)
+    st.markdown('<p class="big-font">📊 Analyse Crypto Avancée</p>', unsafe_allow_html=True)
 
-    # Explication de l'outil
     st.markdown("""
     <div class="explanation">
         <h3>Comment utiliser cet outil ? 🛠️</h3>
@@ -239,26 +279,28 @@ def main():
     start_date = st.sidebar.date_input("Date de début de l'analyse :", value=pd.to_datetime("2020-01-01"))
     investment_amount = st.sidebar.number_input("Montant d'investissement ($) :", min_value=100, value=10000, step=100)
     
-    # Création et utilisation de l'analyseur
+    # Création de l'analyseur
     analyzer = ComprehensiveCryptoAnalyzer(tickers, names, start_date)
-    analyzer.fetch_data()
-    analyzer.prepare_data()  # Ajout de l'étape de préparation des données
-    analyzer.analyze_relationships(investment_amount)
-
-    # Explication des résultats
-    st.markdown("""
-    <div class="explanation">
-        <h3>Interprétation des résultats 📈</h3>
-        <ul>
-            <li><strong>Prétraitement des données :</strong> Les données sont nettoyées, rendues stationnaires et normalisées pour une analyse plus précise.</li>
-            <li><strong>Hedging Ratio :</strong> Indique combien d'unités de l'autre crypto sont nécessaires pour couvrir une unité de Bitcoin.</li>
-            <li><strong>Spread :</strong> Représente la différence entre le prix du Bitcoin et le prix ajusté (par le hedging ratio) de l'autre crypto.</li>
-            <li><strong>Signaux d'achat/vente :</strong> Basés sur la position du spread par rapport à sa moyenne historique.</li>
-            <li><strong>Recommandations :</strong> Suggèrent d'acheter lorsque le spread est significativement en dessous de sa moyenne (Bitcoin potentiellement sous-évalué) et de vendre lorsqu'il est au-dessus (Bitcoin potentiellement surévalué).</li>
-        </ul>
-        <p><em>Note : Ces analyses sont basées sur des données historiques et ne garantissent pas les performances futures. Utilisez ces informations en conjonction avec d'autres outils et votre propre jugement pour prendre des décisions d'investissement.</em></p>
-    </div>
-    """, unsafe_allow_html=True)
+    
+    # Exécution de l'analyse
+    if st.button("Lancer l'analyse"):
+        with st.spinner("Analyse en cours... Veuillez patienter."):
+            analyzer.run_analysis(investment_amount)
+        
+        st.success("Analyse terminée !")
+        
+        st.markdown("""
+        <div class="explanation">
+            <h3>Interprétation des résultats 📈</h3>
+            <ul>
+                <li><strong>Signaux de trading :</strong> Basés sur les croisements des moyennes mobiles des ratios de prix.</li>
+                <li><strong>Cointégration :</strong> Indique une relation à long terme entre les cryptomonnaies.</li>
+                <li><strong>Ratio de couverture :</strong> Suggère la proportion optimale pour une stratégie de trading par paires.</li>
+                <li><strong>Modèle Forêt Aléatoire :</strong> Montre l'importance relative de chaque cryptomonnaie dans la prédiction des rendements de Bitcoin.</li>
+            </ul>
+            <p><em>Note : Ces analyses sont basées sur des données historiques et ne garantissent pas les performances futures. Utilisez ces informations en conjonction avec d'autres outils et votre propre jugement pour prendre des décisions d'investissement.</em></p>
+        </div>
+        """, unsafe_allow_html=True)
 
 if __name__ == "__main__":
     main()
