@@ -152,6 +152,46 @@ class ComprehensiveCryptoCommoAnalyzer:
         st.write("### Importance des Variables dans le Modèle Forêt Aléatoire")
         st.write(feature_importances.head(10))
 
+    def plot_significant_relationships(self):
+        """
+        Affiche des graphiques entre Bitcoin et chaque actif qui possède une relation statistiquement significative.
+        """
+        st.markdown("### Visualisation des Relations Statistiquement Significatives 📊")
+        st.write("Nous allons visualiser les relations entre Bitcoin et les autres actifs qui présentent une causalité, une co-intégration ou d'autres relations significatives.")
+        significant_assets = []
+
+        # Vérification de la causalité de Granger
+        for col in self.returns.columns:
+            if col != 'BTC-USD':
+                try:
+                    test_result = grangercausalitytests(self.returns[['BTC-USD', col]], maxlag=5, verbose=False)
+                    min_p_value = min(result[0]['ssr_ftest'][1] for result in test_result.values())
+                    if min_p_value < 0.05:
+                        significant_assets.append(col)
+                        st.write(f"**{col} a une relation de causalité de Granger significative avec Bitcoin (p-value={min_p_value:.4f})**")
+                except Exception as e:
+                    st.warning(f"Problème avec le test de Granger pour {col} : {e}")
+
+        # Vérification de la co-intégration
+        btc_prices = self.data['BTC-USD']
+        for col in self.data.columns:
+            if col != 'BTC-USD':
+                _, pvalue, _ = coint(btc_prices, self.data[col])
+                if pvalue < 0.05:
+                    significant_assets.append(col)
+                    st.write(f"**{col} est co-intégré avec Bitcoin (p-value={pvalue:.4f})**")
+
+        # Suppression des doublons
+        significant_assets = list(set(significant_assets))
+
+        # Affichage des graphiques
+        for col in significant_assets:
+            fig = go.Figure()
+            fig.add_trace(go.Scatter(x=self.data.index, y=self.data['BTC-USD'], mode='lines', name='Bitcoin (BTC)'))
+            fig.add_trace(go.Scatter(x=self.data.index, y=self.data[col], mode='lines', name=self.names[self.tickers.index(col)]))
+            fig.update_layout(title=f"Relation entre Bitcoin et {self.names[self.tickers.index(col)]}", xaxis_title="Date", yaxis_title="Prix", autosize=False, width=800, height=400)
+            st.plotly_chart(fig)
+
 
 def main():
     st.title("💡 Analyse des Relations entre Bitcoin et Autres Actifs Financiers")
@@ -188,6 +228,9 @@ def main():
 
     st.header('2. Modèle Forêt Aléatoire avec Variables Significatives')
     analyzer.random_forest_model()
+
+    st.header('3. Visualisation des Relations Statistiquement Significatives')
+    analyzer.plot_significant_relationships()
 
 if __name__ == "__main__":
     main()
