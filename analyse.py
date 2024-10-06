@@ -1,14 +1,14 @@
 import pandas as pd
 import numpy as np
 import yfinance as yf
-from sklearn.preprocessing import MinMaxScaler
+from sklearn.preprocessing import MinMaxScaler, StandardScaler
 from statsmodels.tsa.stattools import adfuller, coint
+import matplotlib.pyplot as plt
+import seaborn
+import statsmodels.api as sm
+from pykalman import KalmanFilter
 import plotly.graph_objects as go
 import streamlit as st
-from scipy import stats
-from statsmodels.tsa.ar_model import AutoReg
-from pykalman import KalmanFilter
-import statsmodels.api as sm
 
 # Configuration de la page Streamlit
 st.set_page_config(page_title="Analyse Crypto Avancée", page_icon="📈", layout="wide")
@@ -70,22 +70,17 @@ class ComprehensiveCryptoAnalyzer:
         self.latest_prices = None
         self.cointegration_results = {}
         self.pairs = []
-        self.hurst_exponents = {}
-        self.half_lives = {}
-        self.kalman_results = {}
 
     def fetch_data(self):
         """Télécharge les données historiques pour toutes les cryptomonnaies."""
         st.markdown('<p class="subheader">Téléchargement des données historiques</p>', unsafe_allow_html=True)
         data_dict = {}
-        missing_tickers = []
         for ticker, name in zip(self.tickers, self.names):
             try:
                 data = yf.download(ticker, start=self.start_date)['Adj Close'].dropna()
                 data_dict[ticker] = data
                 st.write(f"Données téléchargées pour {name}")
             except Exception as e:
-                missing_tickers.append(ticker)
                 st.error(f"Erreur lors du téléchargement de {name}: {str(e)}")
         
         if data_dict:
@@ -102,7 +97,6 @@ class ComprehensiveCryptoAnalyzer:
         self.handle_missing_data()
         self.check_stationarity()
         self.make_stationary()
-        self.detect_outliers()
         self.scale_data()
         st.success("Préparation des données terminée.")
 
@@ -129,22 +123,11 @@ class ComprehensiveCryptoAnalyzer:
         self.returns = self.data.diff().dropna()
         st.write(f"Séries rendues stationnaires. Nouvelle shape: {self.returns.shape}")
 
-    def detect_outliers(self):
-        """Détecte les valeurs aberrantes dans les données."""
-        st.write("Détection des outliers...")
-        Q1 = self.returns.quantile(0.25)
-        Q3 = self.returns.quantile(0.75)
-        IQR = Q3 - Q1
-        outliers = (self.returns < (Q1 - 1.5 * IQR)) | (self.returns > (Q3 + 1.5 * IQR))
-        st.write(f"Nombre d'outliers détectés : {outliers.sum().sum()}")
-
     def scale_data(self):
         """Normalise les données sur une échelle de 0 à 1."""
         st.write("Normalisation des données...")
-        scaler = MinMaxScaler()
-        self.scaled_data = pd.DataFrame(scaler.fit_transform(self.data),
-                                        index=self.data.index,
-                                        columns=self.data.columns)
+        scaler = StandardScaler()
+        self.scaled_data = pd.DataFrame(scaler.fit_transform(self.data), index=self.data.index, columns=self.data.columns)
         st.write("Les données ont été mises à l'échelle entre 0 et 1")
 
     def test_cointegration(self):
@@ -185,41 +168,10 @@ class ComprehensiveCryptoAnalyzer:
         self.prepare_data()
         self.test_cointegration()
         self.plot_price_ratios()
-        
-        st.markdown('<p class="subheader">Résultats du Trading par Paires</p>', unsafe_allow_html=True)
-        for ticker1, ticker2 in self.pairs:
-            spread = self.scaled_data[ticker1] - self.scaled_data[ticker2]
-            cumulative_returns = (1 + spread).cumprod()
-            
-            st.markdown(f"""
-            <div class='info-box'>
-                <h3>Analyse pour la paire {ticker1} - {ticker2} :</h3>
-                <p><strong>Rendement cumulatif :</strong> {(cumulative_returns.iloc[-1] - 1) * 100:.2f}%</p>
-            </div>
-            """, unsafe_allow_html=True)
-            
-            fig = go.Figure()
-            fig.add_trace(go.Scatter(x=cumulative_returns.index, y=cumulative_returns.values, mode='lines', name='Rendement Cumulatif'))
-            fig.update_layout(title=f"Rendement Cumulatif pour la paire {ticker1} - {ticker2}",
-                              xaxis_title="Date",
-                              yaxis_title="Rendement Cumulatif")
-            st.plotly_chart(fig)
 
-def main():
+# Lancer l'analyse via Streamlit
+if __name__ == "__main__":
     st.markdown('<p class="big-font">Analyse Crypto Avancée avec Trading par Paires</p>', unsafe_allow_html=True)
-
-    st.markdown("""
-    <div class="explanation">
-        <h3>Comment utiliser cet outil ?</h3>
-        <ol>
-            <li>Choisissez la date de début de l'analyse dans le menu latéral.</li>
-            <li>Entrez le montant que vous souhaitez investir.</li>
-            <li>Cliquez sur "Lancer l'analyse" pour commencer.</li>
-            <li>Examinez les résultats de l'analyse pour chaque paire de cryptomonnaies cointégrées.</li>
-            <li>Utilisez les recommandations et les graphiques pour prendre des décisions d'investissement éclairées.</li>
-        </ol>
-    </div>
-    """, unsafe_allow_html=True)
 
     # Configuration des paramètres
     tickers = ['BTC-USD', 'ETH-USD', 'BNB-USD', 'ADA-USD', 'SOL-USD', 'XRP-USD', 'DOGE-USD']
@@ -237,6 +189,3 @@ def main():
             st.success("Analyse terminée !")
         except Exception as e:
             st.error(f"Une erreur s'est produite lors de l'analyse : {str(e)}")
-
-if __name__ == "__main__":
-    main()
