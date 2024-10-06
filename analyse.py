@@ -8,7 +8,7 @@ from sklearn.ensemble import RandomForestRegressor
 from sklearn.metrics import r2_score
 import plotly.graph_objects as go
 import streamlit as st
-import statsmodels.api as sm  # Assurez-vous que cette ligne est présente en haut de votre code
+import statsmodels.api as sm  # Assurez-vous que cette ligne est présente en Ahaut de votre code
 import scipy.stats as stats
 
 # Définir la classe d'analyse
@@ -108,147 +108,27 @@ class ComprehensiveCryptoCommoAnalyzer:
         self.returns = pd.DataFrame(scaler.fit_transform(self.returns), index=self.returns.index, columns=self.returns.columns)
         st.write("**Les données ont été standardisées**")
 
-    def correlation_analysis(self):
-        """
-        Analyse de corrélation pour comprendre les relations linéaires entre Bitcoin et les autres actifs.
-        """
-        st.markdown("### Analyse de Corrélation 📈")
-        st.write("Cette analyse permet de comprendre comment les variations de prix de Bitcoin sont associées à celles d'autres actifs financiers.")
-        corr_matrix = self.returns.corr()
-        fig = go.Figure(data=go.Heatmap(
-            z=corr_matrix.values,
-            x=self.returns.columns,
-            y=self.returns.columns,
-            colorscale='RdBu',
-            zmin=-1, zmax=1
-        ))
-        fig.update_layout(title="Matrice de corrélation des rendements", autosize=False, width=800, height=600)
-        st.plotly_chart(fig)
-
-        btc_corr = corr_matrix['BTC-USD'].sort_values(ascending=False)
-        st.write("### Top 5 des actifs corrélés positivement avec Bitcoin :")
-        st.write(btc_corr.head())
-
-        st.write("### Top 5 des actifs corrélés négativement avec Bitcoin :")
-        st.write(btc_corr.tail())
-
-    def granger_causality(self, max_lag=10):
-        """
-        Test de Causalité de Granger pour évaluer si un actif financier peut prédire le mouvement de Bitcoin.
-        """
-        st.markdown("### Causalité de Granger 🔗")
-        st.write("Ce test évalue si les rendements d'un actif peuvent aider à prédire ceux de Bitcoin.")
-        causality_results = {}
-        for col in self.returns.columns:
-            if col != 'BTC-USD':
-                try:
-                    test_result = grangercausalitytests(self.returns[['BTC-USD', col]], maxlag=max_lag, verbose=False)
-                    min_p_value = min(result[0]['ssr_ftest'][1] for result in test_result.values())
-                    causality_results[col] = min_p_value
-                except ValueError:
-                    st.warning(f"Problème avec le test de Granger pour {col}, peut-être dû à des données insuffisantes.")
-
-        causality_df = pd.DataFrame.from_dict(causality_results, orient='index', columns=['p-value'])
-        causality_df = causality_df.sort_values('p-value')
-
-        st.write("### Top 5 des actifs avec une causalité de Granger significative sur Bitcoin :")
-        st.write(causality_df.head())
-
-    def cointegration_analysis(self):
-        """
-        Test de co-intégration pour identifier les actifs qui partagent une relation à long terme avec Bitcoin.
-        """
-        st.markdown("### Analyse de Co-intégration 🔗")
-        st.write("La co-intégration indique une relation à long terme entre Bitcoin et d'autres actifs.")
-        btc_prices = self.data['BTC-USD']
-        other_prices = self.data.drop('BTC-USD', axis=1)
-
-        results = {}
-        for column in other_prices.columns:
-            _, pvalue, _ = coint(btc_prices, other_prices[column])
-            results[column] = pvalue
-
-        results_df = pd.DataFrame.from_dict(results, orient='index', columns=['p-value'])
-        results_df = results_df.sort_values('p-value')
-
-        st.write("### Top 5 des actifs co-intégrés avec Bitcoin :")
-        st.write(results_df.head())
-
-    def mutual_information_analysis(self):
-        """
-        Analyse d'information mutuelle pour détecter les relations non-linéaires entre Bitcoin et les autres actifs.
-        """
-        st.markdown("### Analyse d'Information Mutuelle 🤝")
-        st.write("L'information mutuelle permet de détecter des relations non-linéaires entre les actifs.")
-        X = self.returns.drop('BTC-USD', axis=1)
-        y = self.returns['BTC-USD']
-
-        mi_scores = mutual_info_regression(X, y)
-        mi_df = pd.DataFrame({'Variable': X.columns, 'MI Score': mi_scores})
-        mi_df = mi_df.sort_values('MI Score', ascending=False)
-
-        st.write("### Top 5 des actifs avec la plus forte dépendance avec Bitcoin :")
-        st.write(mi_df.head())
-
-    def f_test_analysis(self):
-        """
-        Effectue un test F pour évaluer la significativité des variables explicatives sur BTC-USD.
-        """
-        st.markdown("### F-Test d'Évaluation des Variables 📊")
-        st.write("Ce test permet de savoir si d'autres actifs ont un effet significatif sur Bitcoin.")
-        X = self.returns.drop('BTC-USD', axis=1)
-        y = self.returns['BTC-USD']
-
-        # Ajout d'une constante pour le modèle de régression
-        X = sm.add_constant(X)
-
-        # Régression linéaire multiple avec statsmodels
-        model = sm.OLS(y, X).fit()
-
-        st.write("### Résultats du Test F :")
-        st.write(model.summary())
-
-        # Extraire les p-values associées à chaque variable
-        p_values = model.pvalues.drop('const')  # Ignorer la constante
-
-        st.write("### P-values des variables explicatives :")
-        st.write(p_values)
-
-        # Sélection des variables significatives (p-value < 0.05)
-        self.significant_vars = p_values[p_values < 0.05].index
-        st.write("### Variables ayant un pouvoir prédictif significatif (p-value < 0.05) :")
-        st.write(self.significant_vars)
-
     def random_forest_model(self):
         """
         Construire un modèle Forêt Aléatoire basé sur les meilleures dérivées et inverses des actifs, excepté Bitcoin, et afficher le R².
         """
         st.markdown("### Modèle Forêt Aléatoire avec Meilleures Dérivées et Inverses des Actifs 🌲")
-        st.write("Nous construisons un modèle de Forêt Aléatoire pour prédire les rendements de Bitcoin en utilisant les meilleures dérivées et inverses des autres actifs.")
+        st.write("Nous construisons un modèle de Forêt Aléatoire pour prédire les rendements de Bitcoin en utilisant les meilleures dérivées et inverses des autres actifs, sans utiliser Bitcoin lui-même.")
 
-        # Sélectionner les dérivées et inverses les plus corrélés avec BTC-USD
-        best_features = []
+        # Préparation des features : dérivées premières, secondes et inverses des rendements
+        best_features = {}
         for col in self.returns.columns:
             if col != 'BTC-USD':
                 first_derivative = np.gradient(self.returns[col])
                 second_derivative = np.gradient(first_derivative)
                 inverse_returns = self.returns[col].apply(lambda x: 1/x if x != 0 else 0)
 
-                # Calculer la corrélation avec Bitcoin
-                correlation_first = np.corrcoef(first_derivative, self.returns['BTC-USD'])[0, 1]
-                correlation_second = np.corrcoef(second_derivative, self.returns['BTC-USD'])[0, 1]
-                correlation_inverse = np.corrcoef(inverse_returns, self.returns['BTC-USD'])[0, 1]
-
-                # Sélectionner les meilleures dérivées et inverse pour chaque actif
-                if abs(correlation_first) > abs(correlation_second) and abs(correlation_first) > abs(correlation_inverse):
-                    best_features.append(('Première Dérivée', first_derivative))
-                elif abs(correlation_second) > abs(correlation_first) and abs(correlation_second) > abs(correlation_inverse):
-                    best_features.append(('Seconde Dérivée', second_derivative))
-                else:
-                    best_features.append(('Inverse des Rendements', inverse_returns))
+                best_features[f"Première Dérivée de {col}"] = first_derivative
+                best_features[f"Seconde Dérivée de {col}"] = second_derivative
+                best_features[f"Inverse des Rendements de {col}"] = inverse_returns
 
         # Créer une matrice de données avec les meilleures dérivées et inverses sélectionnées
-        X = pd.DataFrame({f"{feature_name} de {col}": feature_data for (feature_name, feature_data), col in zip(best_features, self.returns.columns) if col != 'BTC-USD'})
+        X = pd.DataFrame(best_features, index=self.returns.index)
         y = self.returns['BTC-USD']
 
         # Modèle Forêt Aléatoire
@@ -266,83 +146,12 @@ class ComprehensiveCryptoCommoAnalyzer:
         else:
             st.warning("Le modèle a une capacité limitée à expliquer la variabilité des rendements de Bitcoin.")
 
-    def derive_and_inverse_analysis(self):
-        """
-        Effectue des analyses statistiques en utilisant les dérivées des données du Bitcoin ainsi que leurs inverses, ainsi que des autres actifs pour voir leur pouvoir prédictif sur Bitcoin.
-        """
-        st.markdown("### Analyse des Dérivées et Inverses des Rendements 🚀")
-        st.write("Cette analyse explore les dérivées des rendements de Bitcoin et des autres actifs pour mieux comprendre les variations et comportements.")
+        # Importance des features
+        feature_importances = pd.Series(rf_model.feature_importances_, index=X.columns)
+        feature_importances = feature_importances.sort_values(ascending=False)
+        st.write("### Importance des Variables dans le Modèle Forêt Aléatoire")
+        st.write(feature_importances.head(10))
 
-        btc_returns = self.returns['BTC-USD']
-        all_derivatives = {}
-        all_inverse_returns = {}
-
-        for col in self.returns.columns:
-            # Calcul des dérivées premières et secondes des rendements
-            returns = self.returns[col]
-            first_derivative = np.gradient(returns)
-            second_derivative = np.gradient(first_derivative)
-
-            # Inverses des rendements (en évitant la division par zéro)
-            inverse_returns = returns.apply(lambda x: 1/x if x != 0 else 0)
-
-            all_derivatives[col] = {
-                'Première Dérivée': first_derivative,
-                'Seconde Dérivée': second_derivative,
-                'Inverse des Rendements': inverse_returns
-            }
-            all_inverse_returns[col] = inverse_returns
-
-            # Calcul des statistiques descriptives
-            st.write(f"### Statistiques Descriptives pour {col}")
-            descriptive_stats = pd.DataFrame({
-                'Première Dérivée': first_derivative,
-                'Seconde Dérivée': second_derivative,
-                'Inverse des Rendements': inverse_returns
-            }).describe()
-            st.write(descriptive_stats)
-
-            # Visualisation des dérivées
-            st.line_chart(pd.Series(first_derivative, index=self.returns.index), use_container_width=True)
-            st.write(f"Graphique de la première dérivée des rendements de {col}")
-
-            st.line_chart(pd.Series(second_derivative, index=self.returns.index), use_container_width=True)
-            st.write(f"Graphique de la seconde dérivée des rendements de {col}")
-
-            st.line_chart(pd.Series(inverse_returns, index=self.returns.index), use_container_width=True)
-            st.write(f"Graphique des inverses des rendements de {col}")
-
-        # Effectuer des analyses de corrélation et de prédiction entre les dérivées des autres actifs et Bitcoin
-        st.markdown("### Analyse de Corrélation et de Prédiction entre les Dérivées des Actifs et Bitcoin 🔗")
-        for col in self.returns.columns:
-            if col != 'BTC-USD':
-                st.write(f"### Analyse pour {col}")
-                first_derivative = all_derivatives[col]['Première Dérivée']
-                second_derivative = all_derivatives[col]['Seconde Dérivée']
-                inverse_returns = all_inverse_returns[col]
-
-                # Calculer la corrélation avec Bitcoin
-                correlation_first = np.corrcoef(first_derivative, btc_returns)[0, 1]
-                correlation_second = np.corrcoef(second_derivative, btc_returns)[0, 1]
-                correlation_inverse = np.corrcoef(inverse_returns, btc_returns)[0, 1]
-
-                st.write(f"Corrélation de la première dérivée avec Bitcoin : {correlation_first:.3f}")
-                st.write(f"Corrélation de la seconde dérivée avec Bitcoin : {correlation_second:.3f}")
-                st.write(f"Corrélation des inverses avec Bitcoin : {correlation_inverse:.3f}")
-
-                # Effectuer une régression linéaire pour voir le pouvoir prédictif
-                X = pd.DataFrame({
-                    'Première Dérivée': first_derivative,
-                    'Seconde Dérivée': second_derivative,
-                    'Inverse des Rendements': inverse_returns
-                })
-                X = sm.add_constant(X)
-                y = btc_returns
-
-                model = sm.OLS(y, X).fit()
-                st.write(model.summary())
-
-        st.success("### Analyse terminée pour toutes les dérivées et inverses.")
 
 def main():
     st.title("💡 Analyse des Relations entre Bitcoin et Autres Actifs Financiers")
@@ -377,26 +186,8 @@ def main():
     # Préparation rigoureuse des données
     analyzer.prepare_data()
 
-    st.header('2. Analyse des Corrélations')
-    analyzer.correlation_analysis()
-
-    st.header('3. Analyse de la Causalité de Granger')
-    analyzer.granger_causality()
-
-    st.header('4. Analyse de la Co-intégration')
-    analyzer.cointegration_analysis()
-
-    st.header('5. Analyse de l\'Information Mutuelle')
-    analyzer.mutual_information_analysis()
-
-    st.header('6. F-Test pour évaluer les variables explicatives')
-    analyzer.f_test_analysis()
-
-    st.header('7. Modèle Forêt Aléatoire avec Variables Significatives')
+    st.header('2. Modèle Forêt Aléatoire avec Variables Significatives')
     analyzer.random_forest_model()
-
-    st.header('8. Analyse des Dérivées et Inverses des Rendements des Actifs')
-    analyzer.derive_and_inverse_analysis()
 
 if __name__ == "__main__":
     main()
