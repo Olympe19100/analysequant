@@ -2,7 +2,7 @@ import pandas as pd
 import numpy as np
 import yfinance as yf
 from sklearn.preprocessing import StandardScaler
-from statsmodels.tsa.stattools import coint
+from statsmodels.tsa.stattools import adfuller, coint
 import plotly.graph_objects as go
 import streamlit as st
 
@@ -36,17 +36,60 @@ class ComprehensiveCryptoAnalyzer:
             self.data = pd.DataFrame(data_dict)
             self.returns = self.data.pct_change().dropna()
             self.latest_prices = self.data.iloc[-1]
-            self.scale_data()
             st.success(f"Données téléchargées avec succès. Shape: {self.data.shape}")
         else:
             st.error("Aucune donnée n'a pu être téléchargée.")
 
+    def prepare_data(self):
+        """Prépare les données en gérant les valeurs manquantes, vérifiant la stationnarité, et normalisant les données."""
+        st.markdown('<p class="subheader">Préparation des Données</p>', unsafe_allow_html=True)
+        self.handle_missing_data()
+        self.check_stationarity()
+        self.make_stationary()
+        self.detect_outliers()
+        self.scale_data()
+        st.success("Préparation des données terminée.")
+
+    def handle_missing_data(self, method='linear'):
+        """Gère les valeurs manquantes dans les données."""
+        st.write("Gestion des valeurs manquantes...")
+        self.data = self.data.interpolate(method=method).dropna()
+        self.returns = self.data.pct_change().dropna()
+        st.write(f"Valeurs manquantes traitées. Nouvelle shape: {self.data.shape}")
+
+    def check_stationarity(self):
+        """Vérifie la stationnarité des séries temporelles."""
+        st.write("Vérification de la stationnarité des séries temporelles")
+        for column in self.data.columns:
+            result = adfuller(self.data[column].dropna())
+            if result[1] > 0.05:
+                st.warning(f"La série pour {column} n'est pas stationnaire (p-value: {result[1]:.4f}).")
+            else:
+                st.success(f"La série pour {column} est stationnaire (p-value: {result[1]:.4f}).")
+
+    def make_stationary(self):
+        """Rend les séries temporelles stationnaires."""
+        st.write("Transformation des séries en séries stationnaires...")
+        self.returns = self.data.diff().dropna()
+        st.write(f"Séries rendues stationnaires. Nouvelle shape: {self.returns.shape}")
+
+    def detect_outliers(self):
+        """Détecte les valeurs aberrantes dans les données."""
+        st.write("Détection des outliers...")
+        Q1 = self.returns.quantile(0.25)
+        Q3 = self.returns.quantile(0.75)
+        IQR = Q3 - Q1
+        outliers = (self.returns < (Q1 - 1.5 * IQR)) | (self.returns > (Q3 + 1.5 * IQR))
+        st.write(f"Nombre d'outliers détectés : {outliers.sum().sum()}")
+
     def scale_data(self):
-        """Normalise les données pour éviter les problèmes d'échelle."""
+        """Normalise les données."""
+        st.write("Normalisation des données...")
         scaler = StandardScaler()
         self.scaled_data = pd.DataFrame(scaler.fit_transform(self.data), 
                                         index=self.data.index, 
                                         columns=self.data.columns)
+        st.write("Les données ont été standardisées et mises à la même échelle")
 
     def test_cointegration(self):
         """Effectue les tests de cointégration entre toutes les paires de cryptomonnaies."""
@@ -56,7 +99,7 @@ class ComprehensiveCryptoAnalyzer:
             for j in range(i+1, n):
                 ticker1, ticker2 = self.tickers[i], self.tickers[j]
                 _, pvalue, _ = coint(self.scaled_data[ticker1], self.scaled_data[ticker2])
-                if pvalue < 0.05:  # Utilisation du seuil de 0.01
+                if pvalue < 0.01:  # Utilisation du seuil de 0.01
                     self.pairs.append((ticker1, ticker2))
                     st.info(f"**{ticker1} et {ticker2} sont co-intégrés (p-value={pvalue:.4f})**")
                 else:
@@ -108,6 +151,7 @@ class ComprehensiveCryptoAnalyzer:
             st.error("Pas de données à analyser. Arrêt de l'analyse.")
             return
         
+        self.prepare_data()
         self.test_cointegration()
         
         st.markdown('<p class="subheader">Résultats du Trading par Paires</p>', unsafe_allow_html=True)
