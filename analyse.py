@@ -82,10 +82,64 @@ class ComprehensiveCryptoCommoAnalyzer:
 
     def prepare_data(self):
         """
-        Prépare les données pour l'analyse.
+        Prépare soigneusement les données :
+        - Gestion des valeurs manquantes
+        - Vérification de la stationnarité
+        - Transformation pour rendre les séries stationnaires
+        - Détection et gestion des outliers
+        - Standardisation
         """
-        self.data = self.data.interpolate().dropna()
+        st.markdown("### Préparation des Données 🔧")
+        self.handle_missing_data()
+        self.check_stationarity()
+        self.make_stationary()
+        self.detect_outliers()
+        self.scale_data()
+
+    def handle_missing_data(self, method='linear'):
+        """
+        Gère les valeurs manquantes dans les séries temporelles.
+        """
+        self.data = self.data.interpolate(method=method).dropna()
         self.returns = self.data.pct_change().dropna()
+
+    def check_stationarity(self):
+        """
+        Effectue un test de Dickey-Fuller Augmenté (ADF) pour vérifier la stationnarité des séries temporelles.
+        """
+        st.write("**Vérification de la stationnarité des séries temporelles**")
+        for column in self.data.columns:
+            result = adfuller(self.data[column].dropna())
+            if result[1] > 0.05:
+                st.warning(f"La série pour {column} n'est pas stationnaire.")
+            else:
+                st.success(f"La série pour {column} est stationnaire.")
+
+    def make_stationary(self):
+        """
+        Applique une différenciation première pour rendre les séries temporelles stationnaires.
+        """
+        self.returns = self.data.diff().dropna()
+
+    def detect_outliers(self):
+        """
+        Détection des outliers dans les séries temporelles via la méthode IQR.
+        """
+        st.write("**Détection et gestion des outliers**")
+        Q1 = self.returns.quantile(0.25)
+        Q3 = self.returns.quantile(0.75)
+        IQR = Q3 - Q1
+        outliers = (self.returns < (Q1 - 1.5 * IQR)) | (self.returns > (Q3 + 1.5 * IQR))
+        st.write(f"Nombre d'outliers détectés : {outliers.sum().sum()}")
+
+    def scale_data(self):
+        """
+        Standardisation des données et mise à la même échelle.
+        """
+        scaler = StandardScaler()
+        self.returns = pd.DataFrame(scaler.fit_transform(self.returns), index=self.returns.index, columns=self.returns.columns)
+        min_max_scaler = MinMaxScaler()
+        self.data = pd.DataFrame(min_max_scaler.fit_transform(self.data), index=self.data.index, columns=self.data.columns)
 
     def analyze_cointegration_strategies(self):
         strategy = CointegrationStrategies(self.data)
@@ -116,7 +170,10 @@ def main():
     st.header('1. Téléchargement et Préparation des Données')
     analyzer.fetch_data()
 
-    st.header('2. Stratégies de Trading Basées sur la Coïntégration')
+    st.header('2. Préparation rigoureuse des Données')
+    analyzer.prepare_data()
+
+    st.header('3. Stratégies de Trading Basées sur la Coïntégration')
     analyzer.analyze_cointegration_strategies()
 
 if __name__ == "__main__":
