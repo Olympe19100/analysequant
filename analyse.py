@@ -254,21 +254,29 @@ class ComprehensiveCryptoCommoAnalyzer:
             
             position_size = ((sell_signal.sum() - buy_signal.sum()) / (sell_signal.sum() + buy_signal.sum()) * 100)
             
-            # Calcul du nombre d'unités à acheter
+            # Calcul du nombre d'unités à acheter/vendre
             investment = 10000  # Investissement hypothétique de 10000$
             btc_price = self.latest_prices['BTC-USD']
             other_price = self.latest_prices[col]
             
-            btc_units = (investment * abs(position_size) / 100) / btc_price
-            other_units = (investment * (100 - abs(position_size)) / 100) / other_price
+            if position_size > 0:  # Acheter du Bitcoin, vendre l'autre crypto
+                btc_units = (investment * position_size / 100) / btc_price
+                other_units = (investment * (100 - position_size) / 100) / other_price
+                action_btc = "Acheter"
+                action_other = "Vendre"
+            else:  # Vendre du Bitcoin, acheter l'autre crypto
+                btc_units = (investment * abs(position_size) / 100) / btc_price
+                other_units = (investment * (100 - abs(position_size)) / 100) / other_price
+                action_btc = "Vendre"
+                action_other = "Acheter"
             
-            st.markdown(f"<div class='info-box'><h3>Stratégie pour la paire Bitcoin - {self.names[self.tickers.index(col)]} :</h3>"
+st.markdown(f"<div class='info-box'><h3>Stratégie pour la paire Bitcoin - {self.names[self.tickers.index(col)]} :</h3>"
                         f"Nombre de signaux d'achat : {buy_signal.sum()}<br>"
                         f"Nombre de signaux de vente : {sell_signal.sum()}<br>"
-                        f"Taille de position suggérée : {position_size:.2f}%<br>"
+                        f"Taille de position suggérée : {abs(position_size):.2f}%<br>"
                         f"Pour un investissement de 10000$ :<br>"
-                        f"- Acheter {btc_units:.4f} unités de Bitcoin<br>"
-                        f"- Acheter {other_units:.4f} unités de {self.names[self.tickers.index(col)]}"
+                        f"- {action_btc} {btc_units:.4f} unités de Bitcoin<br>"
+                        f"- {action_other} {other_units:.4f} unités de {self.names[self.tickers.index(col)]}"
                         "</div>", unsafe_allow_html=True)
 
 def main():
@@ -295,7 +303,7 @@ def main():
                 <li>Choisissez la date de début de l'analyse dans le menu latéral.</li>
                 <li>Naviguez vers la section "Analyse des cryptomonnaies".</li>
                 <li>Explorez les résultats de l'analyse, y compris les relations de cointégration et les signaux de trading.</li>
-                <li>Découvrez combien d'unités de chaque cryptomonnaie acheter selon la stratégie recommandée.</li>
+                <li>Découvrez combien d'unités de chaque cryptomonnaie acheter ou vendre selon la stratégie recommandée.</li>
             </ol>
         </div>
         """, unsafe_allow_html=True)
@@ -314,7 +322,7 @@ def main():
             <h3>Que signifient ces résultats ? 🤔</h3>
             <p>L'analyse montre comment les différentes cryptomonnaies sont liées à Bitcoin. 
             Les relations significatives peuvent indiquer des opportunités de trading ou des tendances du marché.
-            Nous calculons également le nombre d'unités à acheter pour chaque cryptomonnaie basé sur un investissement hypothétique de 10000$.</p>
+            Nous calculons également le nombre d'unités à acheter ou à vendre pour chaque cryptomonnaie basé sur un investissement hypothétique de 10000$.</p>
         </div>
         """, unsafe_allow_html=True)
         
@@ -328,7 +336,7 @@ def main():
                 <li>Les paires co-intégrées indiquent des cryptomonnaies qui ont tendance à évoluer ensemble sur le long terme.</li>
                 <li>Les signaux d'achat et de vente suggèrent des moments potentiels pour entrer ou sortir du marché.</li>
                 <li>Le modèle de forêt aléatoire montre quelles cryptomonnaies ont le plus d'impact sur le prix du Bitcoin.</li>
-                <li>Le nombre d'unités à acheter est calculé en fonction de la taille de position suggérée et des prix actuels.</li>
+                <li>Le nombre d'unités à acheter ou à vendre est calculé en fonction de la taille de position suggérée et des prix actuels.</li>
             </ul>
         </div>
         """, unsafe_allow_html=True)
