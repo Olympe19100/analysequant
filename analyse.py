@@ -20,7 +20,7 @@ class CointegrationStrategies:
 
     def identify_cointegrated_pairs(self):
         """
-        Identifie les paires d'actifs ayant une relation de co-intégration, c'est-à-dire une relation de long terme.
+        Identifie les paires d'actifs ayant une relation de co-intégration.
         """
         st.write("### Identification des paires d'actifs co-intégrées 📊")
         for i in range(len(self.data.columns)):
@@ -34,11 +34,10 @@ class CointegrationStrategies:
 
     def calculate_hedge_ratios(self):
         """
-        Calcule le ratio de couverture pour chaque paire détectée, en utilisant une régression simple (droite de tendance).
+        Calcule le ratio de couverture pour chaque paire détectée.
         """
         st.write("### Calcul des ratios de couverture (régression linéaire) 📉")
         for asset1, asset2 in self.pairs:
-            # Régression linéaire simple entre les deux actifs
             model = OLS(self.data[asset1], sm.add_constant(self.data[asset2])).fit()
             self.coverage_ratios[(asset1, asset2)] = model.params[1]
             st.write(f"Ratio de couverture pour {asset1}/{asset2} : {model.params[1]:.4f}")
@@ -72,7 +71,7 @@ class CointegrationStrategies:
             st.write(f"**Signaux de Trading pour {asset1}/{asset2} :**")
             st.write(f"Signaux d'achat : {buy_signal.sum()}, Signaux de vente : {sell_signal.sum()}")
 
-# Classe principale pour gérer l'analyse simplifiée
+# Classe principale pour gérer l'analyse et la préparation des données
 class SimpleCryptoAnalyzer:
     def __init__(self, tickers, names, start_date):
         self.tickers = tickers
@@ -104,6 +103,54 @@ class SimpleCryptoAnalyzer:
             st.error(f"Les tickers suivants n'ont pas pu être téléchargés : {missing_tickers}")
         else:
             st.success("Toutes les données ont été téléchargées avec succès!")
+
+    def prepare_data(self):
+        """
+        Prépare soigneusement les données :
+        - Gestion des valeurs manquantes
+        - Vérification de la stationnarité
+        - Transformation des données
+        - Standardisation
+        """
+        st.markdown("### Préparation des données 📊")
+        self.handle_missing_data()
+        self.check_stationarity()
+        self.make_stationary()
+        self.scale_data()
+        st.success("Préparation des données terminée.")
+
+    def handle_missing_data(self):
+        """
+        Gère les valeurs manquantes en utilisant une interpolation linéaire.
+        """
+        self.data = self.data.interpolate(method='linear').dropna()
+        self.returns = self.data.pct_change().dropna()
+
+    def check_stationarity(self):
+        """
+        Vérifie si les données sont stationnaires à l'aide du test ADF.
+        """
+        st.write("**Vérification de la stationnarité**")
+        for column in self.data.columns:
+            result = adfuller(self.data[column].dropna())
+            if result[1] > 0.05:
+                st.warning(f"La série pour {column} n'est pas stationnaire.")
+            else:
+                st.success(f"La série pour {column} est stationnaire.")
+
+    def make_stationary(self):
+        """
+        Rends les données stationnaires en appliquant la différenciation.
+        """
+        self.returns = self.data.diff().dropna()
+
+    def scale_data(self):
+        """
+        Standardisation des données pour les mettre à la même échelle.
+        """
+        scaler = StandardScaler()
+        self.returns = pd.DataFrame(scaler.fit_transform(self.returns), index=self.returns.index, columns=self.returns.columns)
+        st.write("**Données standardisées**")
 
     def random_forest_model(self):
         """
@@ -152,6 +199,7 @@ def main():
 
     st.header('1. Téléchargement et Préparation des Données')
     analyzer.fetch_data()
+    analyzer.prepare_data()
 
     st.header('2. Modèle Prédictif Bitcoin')
     analyzer.random_forest_model()
