@@ -1,10 +1,59 @@
 import pandas as pd
 import numpy as np
 import yfinance as yf
-from sklearn.preprocessing import StandardScaler
+from sklearn.preprocessing import MinMaxScaler
 from statsmodels.tsa.stattools import adfuller, coint
 import plotly.graph_objects as go
 import streamlit as st
+
+# Configuration de la page Streamlit
+st.set_page_config(page_title="Analyse Crypto Avancée", page_icon="📊", layout="wide")
+
+# Styles CSS pour une meilleure présentation
+st.markdown("""
+    <style>
+    .big-font {
+        font-size: 48px !important;
+        color: #1e3d59;
+        text-align: center;
+        margin-bottom: 30px;
+    }
+    .subheader {
+        font-size: 28px;
+        color: #1e3d59;
+        margin-top: 20px;
+        margin-bottom: 10px;
+    }
+    .info-box {
+        background-color: #f5f0e1;
+        color: #1e3d59;
+        padding: 20px;
+        border-radius: 10px;
+        margin-bottom: 20px;
+        border: 1px solid #ff6e40;
+    }
+    .explanation {
+        background-color: #ffc13b;
+        color: #1e3d59;
+        padding: 15px;
+        border-radius: 8px;
+        margin-bottom: 15px;
+        border-left: 5px solid #ff6e40;
+    }
+    body {
+        color: #1e3d59;
+        background-color: #f5f0e1;
+    }
+    .stButton>button {
+        color: #f5f0e1;
+        background-color: #ff6e40;
+        border-color: #ff6e40;
+    }
+    .stTextInput>div>div>input {
+        color: #1e3d59;
+    }
+    </style>
+    """, unsafe_allow_html=True)
 
 class ComprehensiveCryptoAnalyzer:
     def __init__(self, tickers, names, start_date):
@@ -83,13 +132,13 @@ class ComprehensiveCryptoAnalyzer:
         st.write(f"Nombre d'outliers détectés : {outliers.sum().sum()}")
 
     def scale_data(self):
-        """Normalise les données."""
+        """Normalise les données sur une échelle de 0 à 1."""
         st.write("Normalisation des données...")
-        scaler = StandardScaler()
+        scaler = MinMaxScaler()
         self.scaled_data = pd.DataFrame(scaler.fit_transform(self.data), 
                                         index=self.data.index, 
                                         columns=self.data.columns)
-        st.write("Les données ont été standardisées et mises à la même échelle")
+        st.write("Les données ont été mises à l'échelle entre 0 et 1")
 
     def test_cointegration(self):
         """Effectue les tests de cointégration entre toutes les paires de cryptomonnaies."""
@@ -106,7 +155,7 @@ class ComprehensiveCryptoAnalyzer:
                     st.write(f"{ticker1} et {ticker2} ne sont pas co-intégrés (p-value={pvalue:.4f})")
 
     def calculate_spread(self, ticker1, ticker2):
-        """Calcule le spread entre deux cryptomonnaies normalisées."""
+        """Calcule le spread entre deux cryptomonnaies mises à l'échelle."""
         return self.scaled_data[ticker1] - self.scaled_data[ticker2]
 
     def calculate_zscore(self, spread):
@@ -176,6 +225,19 @@ class ComprehensiveCryptoAnalyzer:
 
 def main():
     st.markdown('<p class="big-font">Analyse Crypto avec Trading par Paires</p>', unsafe_allow_html=True)
+
+    st.markdown("""
+    <div class="explanation">
+        <h3>Comment utiliser cet outil ?</h3>
+        <ol>
+            <li>Choisissez la date de début de l'analyse dans le menu latéral.</li>
+            <li>Entrez le montant que vous souhaitez investir.</li>
+            <li>Cliquez sur "Lancer l'analyse" pour commencer.</li>
+            <li>Examinez les résultats de l'analyse pour chaque paire de cryptomonnaies cointégrées.</li>
+            <li>Utilisez les recommandations et les graphiques pour prendre des décisions d'investissement éclairées.</li>
+        </ol>
+    </div>
+    """, unsafe_allow_html=True)
 
     # Configuration des paramètres
     tickers = ['BTC-USD', 'ETH-USD', 'BNB-USD', 'ADA-USD', 'SOL-USD', 'XRP-USD', 'DOGE-USD']
