@@ -73,7 +73,7 @@ class ComprehensiveCryptoAnalyzer:
 
     def fetch_data(self):
         """Télécharge les données historiques pour toutes les cryptomonnaies."""
-        st.markdown('<p class="subheader">Téléchargement des données historiques 📊</p>', unsafe_allow_html=True)
+        st.markdown('<p class="subheader">Téléchargement des données historiques</p>', unsafe_allow_html=True)
         data_dict = {}
         missing_tickers = []
         for ticker, name in zip(self.tickers, self.names):
@@ -94,7 +94,7 @@ class ComprehensiveCryptoAnalyzer:
 
     def prepare_data(self):
         """Prépare les données en gérant les valeurs manquantes, vérifiant la stationnarité, et normalisant les données."""
-        st.markdown('<p class="subheader">Préparation des Données 🔧</p>', unsafe_allow_html=True)
+        st.markdown('<p class="subheader">Préparation des Données</p>', unsafe_allow_html=True)
         self.handle_missing_data()
         self.check_stationarity()
         self.make_stationary()
@@ -142,7 +142,7 @@ class ComprehensiveCryptoAnalyzer:
 
     def calculate_ratios(self):
         """Calcule les ratios entre Bitcoin et les autres cryptomonnaies."""
-        st.markdown('<p class="subheader">Calcul des ratios 📊</p>', unsafe_allow_html=True)
+        st.markdown('<p class="subheader">Calcul des ratios</p>', unsafe_allow_html=True)
         for col in self.data.columns:
             if col != 'BTC-USD':
                 self.ratios[col] = self.data['BTC-USD'] / self.data[col]
@@ -150,7 +150,7 @@ class ComprehensiveCryptoAnalyzer:
 
     def generate_signals(self):
         """Génère des signaux basés sur les ratios et leurs moyennes mobiles."""
-        st.markdown('<p class="subheader">Génération des signaux de trading 🚦</p>', unsafe_allow_html=True)
+        st.markdown('<p class="subheader">Génération des signaux de trading</p>', unsafe_allow_html=True)
         for col, ratio in self.ratios.items():
             short_ma = ratio.rolling(window=10).mean()
             long_ma = ratio.rolling(window=30).mean()
@@ -164,7 +164,7 @@ class ComprehensiveCryptoAnalyzer:
 
     def analyze_cointegration(self):
         """Analyse la cointégration entre Bitcoin et les autres cryptomonnaies."""
-        st.markdown('<p class="subheader">Analyse de cointégration 🔗</p>', unsafe_allow_html=True)
+        st.markdown('<p class="subheader">Analyse de cointégration</p>', unsafe_allow_html=True)
         for col in self.data.columns:
             if col != 'BTC-USD':
                 _, pvalue, _ = coint(self.data['BTC-USD'], self.data[col])
@@ -181,7 +181,7 @@ class ComprehensiveCryptoAnalyzer:
 
     def random_forest_model(self):
         """Crée un modèle de forêt aléatoire pour prédire les rendements de Bitcoin."""
-        st.markdown('<p class="subheader">Modèle Forêt Aléatoire 🌲</p>', unsafe_allow_html=True)
+        st.markdown('<p class="subheader">Modèle Forêt Aléatoire</p>', unsafe_allow_html=True)
         
         features = self.returns.drop('BTC-USD', axis=1)
         target = self.returns['BTC-USD']
@@ -200,7 +200,7 @@ class ComprehensiveCryptoAnalyzer:
 
     def plot_results(self):
         """Trace les graphiques des prix, ratios et signaux."""
-        st.markdown('<p class="subheader">Visualisation des Résultats 📈</p>', unsafe_allow_html=True)
+        st.markdown('<p class="subheader">Visualisation des Résultats</p>', unsafe_allow_html=True)
         for col in self.data.columns:
             if col != 'BTC-USD':
                 fig = go.Figure()
@@ -233,7 +233,7 @@ class ComprehensiveCryptoAnalyzer:
         self.random_forest_model()
         self.plot_results()
         
-        st.markdown('<p class="subheader">Résumé de l'Analyse et Recommandations 📊</p>', unsafe_allow_html=True)
+        st.markdown('<p class="subheader">Résumé de l\'Analyse et Recommandations</p>', unsafe_allow_html=True)
         for col in self.data.columns:
             if col != 'BTC-USD':
                 latest_signal = self.signals[col].iloc[-1]
@@ -258,11 +258,11 @@ class ComprehensiveCryptoAnalyzer:
                 """, unsafe_allow_html=True)
 
 def main():
-    st.markdown('<p class="big-font">📊 Analyse Crypto Avancée</p>', unsafe_allow_html=True)
+    st.markdown('<p class="big-font">Analyse Crypto Avancée</p>', unsafe_allow_html=True)
 
     st.markdown("""
     <div class="explanation">
-        <h3>Comment utiliser cet outil ? 🛠️</h3>
+        <h3>Comment utiliser cet outil ?</h3>
         <ol>
             <li>Choisissez la date de début de l'analyse dans le menu latéral.</li>
             <li>Entrez le montant que vous souhaitez investir.</li>
@@ -291,7 +291,7 @@ def main():
         
         st.markdown("""
         <div class="explanation">
-            <h3>Interprétation des résultats 📈</h3>
+            <h3>Interprétation des résultats</h3>
             <ul>
                 <li><strong>Signaux de trading :</strong> Basés sur les croisements des moyennes mobiles des ratios de prix.</li>
                 <li><strong>Cointégration :</strong> Indique une relation à long terme entre les cryptomonnaies.</li>
