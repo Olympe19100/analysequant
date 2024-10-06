@@ -3,11 +3,10 @@ import numpy as np
 import yfinance as yf
 from sklearn.preprocessing import MinMaxScaler, StandardScaler
 from statsmodels.tsa.stattools import adfuller, coint
-import matplotlib.pyplot as plt
+import plotly.graph_objects as go
 import seaborn
 import statsmodels.api as sm
 from pykalman import KalmanFilter
-import plotly.graph_objects as go
 import streamlit as st
 
 # Configuration de la page Streamlit
@@ -124,11 +123,11 @@ class ComprehensiveCryptoAnalyzer:
         st.write(f"Séries rendues stationnaires. Nouvelle shape: {self.returns.shape}")
 
     def scale_data(self):
-        """Normalise les données sur une échelle de 0 à 1."""
+        """Normalise les données sur une échelle standardisée."""
         st.write("Normalisation des données...")
         scaler = StandardScaler()
         self.scaled_data = pd.DataFrame(scaler.fit_transform(self.data), index=self.data.index, columns=self.data.columns)
-        st.write("Les données ont été mises à l'échelle entre 0 et 1")
+        st.write("Les données ont été mises à l'échelle standardisée.")
 
     def test_cointegration(self):
         """Effectue les tests de cointégration entre toutes les paires de cryptomonnaies."""
