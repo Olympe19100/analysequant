@@ -142,18 +142,20 @@ class ComprehensiveCryptoAnalyzer:
         
         st.write("Les données ont été standardisées et mises à la même échelle")
 
-    def analyze_cointegration(self):
-        """Analyse la cointégration entre Bitcoin et les autres cryptomonnaies."""
-        st.markdown('<p class="subheader">Analyse de cointégration</p>', unsafe_allow_html=True)
+    def test_cointegration(self):
+        """Effectue les tests de cointégration entre Bitcoin et les autres cryptomonnaies."""
+        st.markdown('<p class="subheader">Tests de Cointégration</p>', unsafe_allow_html=True)
+        cointegrated_pairs = []
         for col in self.data.columns:
             if col != 'BTC-USD':
                 _, pvalue, _ = coint(self.data['BTC-USD'], self.data[col])
                 self.cointegration_results[col] = pvalue
                 if pvalue < 0.05:
+                    cointegrated_pairs.append(col)
                     st.info(f"**{col} est co-intégré avec Bitcoin (p-value={pvalue:.4f})**")
-                    self.apply_kalman_filter('BTC-USD', col)
                 else:
                     st.write(f"{col} n'est pas co-intégré avec Bitcoin (p-value={pvalue:.4f})")
+        return cointegrated_pairs
 
     def apply_kalman_filter(self, asset1, asset2):
         """Applique un filtre de Kalman pour estimer dynamiquement alpha et beta."""
@@ -211,49 +213,48 @@ class ComprehensiveCryptoAnalyzer:
             return
         
         self.prepare_data()
-        self.analyze_cointegration()
+        cointegrated_pairs = self.test_cointegration()
         
         st.markdown('<p class="subheader">Résumé de l\'Analyse et Recommandations</p>', unsafe_allow_html=True)
-        for col in self.data.columns:
-            if col != 'BTC-USD' and self.cointegration_results.get(col, 1) < 0.05:
-                signals = self.generate_trading_signals('BTC-USD', col, investment_amount)
-                
-                if signals:
-                    st.markdown(f"""
-                    <div class='info-box'>
-                        <h3>Analyse pour la paire Bitcoin - {self.names[self.tickers.index(col)]} :</h3>
-                        <p><strong>Cointegration :</strong> Oui (p-value={self.cointegration_results[col]:.4f})</p>
-                        <p><strong>Recommandation :</strong><br>
-                        {signals['action_asset1']} {signals['quantity_asset1']:.4f} unités de Bitcoin<br>
-                        {signals['action_asset2']} {signals['quantity_asset2']:.4f} unités de {self.names[self.tickers.index(col)]}</p>
-                        <p><strong>Prix actuels :</strong><br>
-                        Bitcoin (BTC) : {self.latest_prices['BTC-USD']:.2f}$<br>
-                        {self.names[self.tickers.index(col)]} : {self.latest_prices[col]:.2f}$</p>
-                    </div>
-                    """, unsafe_allow_html=True)
-                else:
-                    st.info(f"Pas de signal de trading pour la paire Bitcoin - {self.names[self.tickers.index(col)]} actuellement.")
+        for col in cointegrated_pairs:
+            self.apply_kalman_filter('BTC-USD', col)
+            signals = self.generate_trading_signals('BTC-USD', col, investment_amount)
+            
+            if signals:
+                st.markdown(f"""
+                <div class='info-box'>
+                    <h3>Analyse pour la paire Bitcoin - {self.names[self.tickers.index(col)]} :</h3>
+                    <p><strong>Cointegration :</strong> Oui (p-value={self.cointegration_results[col]:.4f})</p>
+                    <p><strong>Recommandation :</strong><br>
+                    {signals['action_asset1']} {signals['quantity_asset1']:.4f} unités de Bitcoin<br>
+                    {signals['action_asset2']} {signals['quantity_asset2']:.4f} unités de {self.names[self.tickers.index(col)]}</p>
+                    <p><strong>Prix actuels :</strong><br>
+                    Bitcoin (BTC) : {self.latest_prices['BTC-USD']:.2f}$<br>
+                    {self.names[self.tickers.index(col)]} : {self.latest_prices[col]:.2f}$</p>
+                </div>
+                """, unsafe_allow_html=True)
+            else:
+                st.info(f"Pas de signal de trading pour la paire Bitcoin - {self.names[self.tickers.index(col)]} actuellement.")
 
-        self.plot_results()
+        self.plot_results(cointegrated_pairs)
 
-    def plot_results(self):
+    def plot_results(self, cointegrated_pairs):
         """Trace les graphiques des prix et des résidus."""
         st.markdown('<p class="subheader">Visualisation des Résultats</p>', unsafe_allow_html=True)
-        for col in self.data.columns:
-            if col != 'BTC-USD' and col in self.kalman_results:
-                fig = go.Figure()
-                fig.add_trace(go.Scatter(x=self.data.index, y=self.data['BTC-USD'], mode='lines', name='Bitcoin'))
-                fig.add_trace(go.Scatter(x=self.data.index, y=self.data[col], mode='lines', name=col))
-                
-                residuals = self.data['BTC-USD'] - (self.kalman_results[col]['alpha'] + self.kalman_results[col]['beta'] * self.data[col])
-                fig.add_trace(go.Scatter(x=self.data.index, y=residuals, mode='lines', name='Residuals', yaxis="y2"))
-                
-                fig.update_layout(title=f"Prix et Résidus pour Bitcoin et {col}",
-                                  xaxis_title="Date",
-                                  yaxis_title="Prix",
-                                  yaxis2=dict(title="Résidus", overlaying="y", side="right"))
-                
-                st.plotly_chart(fig)
+        for col in cointegrated_pairs:
+            fig = go.Figure()
+            fig.add_trace(go.Scatter(x=self.data.index, y=self.data['BTC-USD'], mode='lines', name='Bitcoin'))
+            fig.add_trace(go.Scatter(x=self.data.index, y=self.data[col], mode='lines', name=col))
+            
+            residuals = self.data['BTC-USD'] - (self.kalman_results[col]['alpha'] + self.kalman_results[col]['beta'] * self.data[col])
+            fig.add_trace(go.Scatter(x=self.data.index, y=residuals, mode='lines', name='Residuals', yaxis="y2"))
+            
+            fig.update_layout(title=f"Prix et Résidus pour Bitcoin et {col}",
+                              xaxis_title="Date",
+                              yaxis_title="Prix",
+                              yaxis2=dict(title="Résidus", overlaying="y", side="right"))
+            
+            st.plotly_chart(fig)
 
 def main():
     st.markdown('<p class="big-font">Analyse Crypto Avancée avec Cointégration</p>', unsafe_allow_html=True)
@@ -265,7 +266,7 @@ def main():
             <li>Choisissez la date de début de l'analyse dans le menu latéral.</li>
             <li>Entrez le montant que vous souhaitez investir.</li>
             <li>Cliquez sur "Lancer l'analyse" pour commencer.</li>
-            <li>Examinez les résultats de l'analyse pour chaque paire de cryptomonnaies.</li>
+            <li>Examinez les résultats de l'analyse pour chaque paire de cryptomonnaies cointégrées.</li>
             <li>Utilisez les recommandations et les graphiques pour prendre des décisions d'investissement éclairées.</li>
         </ol>
     </div>
