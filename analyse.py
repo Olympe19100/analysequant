@@ -175,25 +175,38 @@ class ComprehensiveCryptoCommoAnalyzer:
                 except Exception as e:
                     st.warning(f"Problème avec le test de Granger pour {col} : {e}")
 
-        # Vérification de la co-intégration
+        # Vérification de la co-intégration avec un seuil de significativité de 0.01
         btc_prices = self.data['BTC-USD']
         for col in self.data.columns:
             if col != 'BTC-USD':
                 _, pvalue, _ = coint(btc_prices, self.data[col])
-                if pvalue < 0.05:
+                if pvalue < 0.01:
                     significant_assets.append(col)
                     st.write(f"**{col} est co-intégré avec Bitcoin (p-value={pvalue:.4f})**")
 
         # Suppression des doublons
         significant_assets = list(set(significant_assets))
 
-        # Affichage des graphiques
+        # Affichage des graphiques et génération des signaux de trading
         for col in significant_assets:
             fig = go.Figure()
             fig.add_trace(go.Scatter(x=self.data.index, y=self.data['BTC-USD'], mode='lines', name='Bitcoin (BTC)'))
             fig.add_trace(go.Scatter(x=self.data.index, y=self.data[col], mode='lines', name=self.names[self.tickers.index(col)]))
             fig.update_layout(title=f"Relation entre Bitcoin et {self.names[self.tickers.index(col)]}", xaxis_title="Date", yaxis_title="Prix (mis à la même échelle)", autosize=False, width=800, height=400)
             st.plotly_chart(fig)
+
+            # Génération de signaux de trading basés sur la co-intégration
+            signal = self.data['BTC-USD'] - self.data[col]
+            buy_signal = signal < signal.quantile(0.25)
+            sell_signal = signal > signal.quantile(0.75)
+
+            st.write(f"**Signaux de trading pour la paire Bitcoin - {self.names[self.tickers.index(col)]}**")
+            st.write(f"Nombre de signaux d'achat : {buy_signal.sum()} | Nombre de signaux de vente : {sell_signal.sum()}")
+
+            # Calcul de la taille de position en fonction de l'Edge Ratio
+            edge_ratio = (sell_signal.sum() - buy_signal.sum()) / (sell_signal.sum() + buy_signal.sum())
+            position_size = edge_ratio * 100  # Exemple de calcul de taille de position en fonction de l'Edge Ratio
+            st.write(f"**Taille de position suggérée (en % du capital) :** {position_size:.2f}%")
 
 
 def main():
@@ -202,30 +215,13 @@ def main():
 
     # Liste des tickers et noms réels des cryptomonnaies
     tickers = [
-        'BTC-USD', 'ETH-USD', 'BNB-USD', 'ADA-USD', 'SOL-USD', 'XRP-USD', 'DOGE-USD', 'DOT-USD', 'AVAX-USD'
+        'BTC-USD', 'ETH-USD', 'BNB-USD', 'ADA-USD', 'SOL-USD', 'XRP-USD', 'DOGE-USD', 'DOT-USD', 'AVAX-USD',
+        'MATIC-USD', 'LTC-USD', 'LINK-USD', 'UNI1-USD', 'ATOM-USD', 'XMR-USD', 'ALGO-USD', 'FIL-USD', 'VET-USD'
     ]
     
     # Noms réels des actifs financiers correspondants
     names = [
         'Bitcoin (BTC)', 'Ethereum (ETH)', 'Binance Coin (BNB)', 'Cardano (ADA)', 'Solana (SOL)',
-        'Ripple (XRP)', 'Dogecoin (DOGE)', 'Polkadot (DOT)', 'Avalanche (AVAX)'
-    ]
-
-    start_date = '2018-01-01'
-
-    analyzer = ComprehensiveCryptoCommoAnalyzer(tickers, names, start_date)
-
-    st.header('1. Téléchargement et Préparation des Données')
-    analyzer.fetch_data()
-    
-    # Préparation rigoureuse des données
-    analyzer.prepare_data()
-
-    st.header('2. Modèle Forêt Aléatoire avec Variables Significatives')
-    analyzer.random_forest_model()
-
-    st.header('3. Visualisation des Relations Statistiquement Significatives')
-    analyzer.plot_significant_relationships()
-
-if __name__ == "__main__":
-    main()
+        'Ripple (XRP)', 'Dogecoin (DOGE)', 'Polkadot (DOT)', 'Avalanche (AVAX)', 'Polygon (MATIC)',
+        'Litecoin (LTC)', 'Chainlink (LINK)', 'Uniswap (UNI)', 'Cosmos (ATOM)', 'Monero (XMR)',
+        'Algorand (ALGO
