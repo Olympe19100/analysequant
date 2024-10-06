@@ -12,17 +12,6 @@ from statsmodels.regression.linear_model import OLS
 
 st.set_page_config(page_title="Analyse Crypto", page_icon="📊", layout="wide")
 
-st.markdown("""
-    <style>
-    .big-font {
-        font-size:50px !important;
-        color: #1E90FF;
-    }
-    </style>
-    """, unsafe_allow_html=True)
-
-st.markdown('<p class="big-font">📊 Analyse Crypto</p>', unsafe_allow_html=True)
-
 class CryptoAnalyzer:
     def __init__(self, tickers, names, start_date):
         self.tickers = tickers
@@ -33,8 +22,6 @@ class CryptoAnalyzer:
 
     def fetch_data(self):
         st.write("## Téléchargement des données 📥")
-        st.write("Nous collectons les prix historiques des cryptomonnaies.")
-        
         data_dict = {}
         for ticker, name in zip(self.tickers, self.names):
             try:
@@ -52,34 +39,77 @@ class CryptoAnalyzer:
 
     def prepare_data(self):
         st.write("## Préparation des données 🔧")
-        st.write("Nous nettoyons et préparons les données pour l'analyse.")
-        
-        # Gestion des valeurs manquantes
-        self.data = self.data.interpolate(method='linear').dropna()
+        self.handle_missing_data()
+        self.check_stationarity()
+        self.make_stationary()
+        self.detect_outliers()
+        self.scale_data()
+        st.success("Données préparées avec succès !")
+
+    def handle_missing_data(self, method='linear'):
+        self.data = self.data.interpolate(method=method).dropna()
         self.returns = self.data.pct_change().dropna()
-        
-        # Standardisation des données
+
+    def check_stationarity(self):
+        st.write("**Vérification de la stationnarité**")
+        for column in self.data.columns:
+            result = adfuller(self.data[column].dropna())
+            if result[1] > 0.05:
+                st.warning(f"La série pour {column} n'est pas stationnaire.")
+            else:
+                st.success(f"La série pour {column} est stationnaire.")
+
+    def make_stationary(self):
+        self.returns = self.data.diff().dropna()
+
+    def detect_outliers(self):
+        st.write("**Détection des outliers**")
+        Q1 = self.returns.quantile(0.25)
+        Q3 = self.returns.quantile(0.75)
+        IQR = Q3 - Q1
+        outliers = (self.returns < (Q1 - 1.5 * IQR)) | (self.returns > (Q3 + 1.5 * IQR))
+        st.write(f"Nombre d'outliers détectés : {outliers.sum().sum()}")
+
+    def scale_data(self):
         scaler = StandardScaler()
         self.returns = pd.DataFrame(scaler.fit_transform(self.returns), index=self.returns.index, columns=self.returns.columns)
         
-        st.success("Données préparées avec succès !")
-
-    def analyze_relationships(self):
-        st.write("## Analyse des relations 🔍")
-        st.write("Nous examinons les liens entre Bitcoin et les autres cryptomonnaies.")
+        min_max_scaler = MinMaxScaler()
+        self.data = pd.DataFrame(min_max_scaler.fit_transform(self.data), index=self.data.index, columns=self.data.columns)
         
+        st.write("**Les données ont été standardisées et mises à la même échelle**")
+
+    def analyze_cointegration(self):
+        st.write("## Analyse de co-intégration 🔍")
         btc_col = 'BTC-USD'
+        cointegrated_pairs = []
         for col in self.data.columns:
             if col != btc_col:
-                correlation = self.data[btc_col].corr(self.data[col])
-                st.write(f"**Corrélation entre Bitcoin et {self.names[self.tickers.index(col)]} :** {correlation:.2f}")
-        
-        st.success("Analyse des relations terminée !")
+                _, pvalue, _ = coint(self.data[btc_col], self.data[col])
+                if pvalue < 0.01:
+                    cointegrated_pairs.append((btc_col, col))
+                    st.write(f"**{col} est co-intégré avec Bitcoin (p-value={pvalue:.4f})**")
+        return cointegrated_pairs
+
+    def generate_trading_signals(self, cointegrated_pairs):
+        st.write("## Génération des signaux de trading 🚦")
+        for pair in cointegrated_pairs:
+            btc_col, other_col = pair
+            spread = self.data[btc_col] - self.data[other_col]
+            z_score = (spread - spread.mean()) / spread.std()
+            
+            buy_signal = z_score < -2
+            sell_signal = z_score > 2
+            
+            st.write(f"**Signaux pour {btc_col}/{other_col} :**")
+            st.write(f"Nombre de signaux d'achat : {buy_signal.sum()}, Nombre de signaux de vente : {sell_signal.sum()}")
+            
+            edge_ratio = (sell_signal.sum() - buy_signal.sum()) / (sell_signal.sum() + buy_signal.sum())
+            position_size = abs(edge_ratio) * 100
+            st.write(f"Taille de position suggérée : {position_size:.2f}%")
 
     def predict_bitcoin(self):
         st.write("## Prédiction des mouvements de Bitcoin 🔮")
-        st.write("Nous utilisons un modèle pour prédire les variations du prix du Bitcoin.")
-        
         X = self.returns.drop('BTC-USD', axis=1)
         y = self.returns['BTC-USD']
         
@@ -95,22 +125,18 @@ class CryptoAnalyzer:
         else:
             st.warning("🤔 Le modèle a une capacité limitée à prédire les mouvements du Bitcoin.")
 
-    def visualize_data(self):
+    def visualize_data(self, cointegrated_pairs):
         st.write("## Visualisation des prix 📈")
-        st.write("Comparons l'évolution des prix des différentes cryptomonnaies.")
-        
-        selected_crypto = st.selectbox("Choisissez une cryptomonnaie à comparer avec Bitcoin :", self.names[1:])
-        selected_ticker = self.tickers[self.names.index(selected_crypto)]
-        
-        fig = go.Figure()
-        fig.add_trace(go.Scatter(x=self.data.index, y=self.data['BTC-USD'], mode='lines', name='Bitcoin'))
-        fig.add_trace(go.Scatter(x=self.data.index, y=self.data[selected_ticker], mode='lines', name=selected_crypto))
-        fig.update_layout(title=f"Bitcoin vs {selected_crypto}", xaxis_title="Date", yaxis_title="Prix")
-        st.plotly_chart(fig)
+        for pair in cointegrated_pairs:
+            btc_col, other_col = pair
+            fig = go.Figure()
+            fig.add_trace(go.Scatter(x=self.data.index, y=self.data[btc_col], mode='lines', name='Bitcoin'))
+            fig.add_trace(go.Scatter(x=self.data.index, y=self.data[other_col], mode='lines', name=self.names[self.tickers.index(other_col)]))
+            fig.update_layout(title=f"Bitcoin vs {self.names[self.tickers.index(other_col)]}", xaxis_title="Date", yaxis_title="Prix (normalisé)")
+            st.plotly_chart(fig)
 
 def main():
-    st.sidebar.header("📌 Navigation")
-    page = st.sidebar.radio("Choisissez une section :", ["Accueil", "Analyse", "Prédictions", "Visualisation"])
+    st.title("📊 Analyse des Relations entre Bitcoin et Autres Cryptomonnaies")
 
     tickers = ['BTC-USD', 'ETH-USD', 'BNB-USD', 'ADA-USD', 'SOL-USD', 'XRP-USD', 'DOGE-USD']
     names = ['Bitcoin', 'Ethereum', 'Binance Coin', 'Cardano', 'Solana', 'Ripple', 'Dogecoin']
@@ -119,15 +145,23 @@ def main():
     
     analyzer = CryptoAnalyzer(tickers, names, start_date)
 
-    if page == "Accueil":
-        st.write("## Bienvenue dans l'analyseur de cryptomonnaies ! 👋")
-        st.write("Cet outil vous aide à comprendre les relations entre Bitcoin et d'autres cryptomonnaies.")
-        st.info("👈 Utilisez le menu à gauche pour naviguer entre les différentes sections.")
+    st.sidebar.header("📌 Navigation")
+    page = st.sidebar.radio("Choisissez une section :", ["Préparation des données", "Analyse de co-intégration", "Signaux de trading", "Prédictions", "Visualisation"])
 
-    elif page == "Analyse":
+    if page == "Préparation des données":
         analyzer.fetch_data()
         analyzer.prepare_data()
-        analyzer.analyze_relationships()
+
+    elif page == "Analyse de co-intégration":
+        analyzer.fetch_data()
+        analyzer.prepare_data()
+        cointegrated_pairs = analyzer.analyze_cointegration()
+
+    elif page == "Signaux de trading":
+        analyzer.fetch_data()
+        analyzer.prepare_data()
+        cointegrated_pairs = analyzer.analyze_cointegration()
+        analyzer.generate_trading_signals(cointegrated_pairs)
 
     elif page == "Prédictions":
         analyzer.fetch_data()
@@ -136,7 +170,9 @@ def main():
 
     elif page == "Visualisation":
         analyzer.fetch_data()
-        analyzer.visualize_data()
+        analyzer.prepare_data()
+        cointegrated_pairs = analyzer.analyze_cointegration()
+        analyzer.visualize_data(cointegrated_pairs)
 
 if __name__ == "__main__":
     main()
