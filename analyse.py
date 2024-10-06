@@ -1,7 +1,7 @@
 import pandas as pd
 import numpy as np
 import yfinance as yf
-from sklearn.preprocessing import StandardScaler
+from sklearn.preprocessing import StandardScaler, MinMaxScaler
 from statsmodels.tsa.stattools import adfuller, coint
 import plotly.graph_objects as go
 import streamlit as st
@@ -85,6 +85,54 @@ class ComprehensiveCryptoAnalyzer:
                 st.error(f"Les tickers suivants n'ont pas pu être téléchargés : {missing_tickers}")
             else:
                 st.success("Toutes les données ont été téléchargées avec succès!")
+
+    def prepare_data(self):
+        """Prépare les données en gérant les valeurs manquantes, vérifiant la stationnarité, et normalisant les données."""
+        st.markdown('<p class="subheader">Préparation des Données 🔧</p>', unsafe_allow_html=True)
+        self.handle_missing_data()
+        self.check_stationarity()
+        self.make_stationary()
+        self.detect_outliers()
+        self.scale_data()
+        st.success("Préparation des données terminée.")
+
+    def handle_missing_data(self, method='linear'):
+        """Gère les valeurs manquantes dans les données."""
+        self.data = self.data.interpolate(method=method).dropna()
+        self.returns = self.data.pct_change().dropna()
+
+    def check_stationarity(self):
+        """Vérifie la stationnarité des séries temporelles."""
+        st.write("**Vérification de la stationnarité des séries temporelles**")
+        for column in self.data.columns:
+            result = adfuller(self.data[column].dropna())
+            if result[1] > 0.05:
+                st.warning(f"La série pour {column} n'est pas stationnaire.")
+            else:
+                st.success(f"La série pour {column} est stationnaire.")
+
+    def make_stationary(self):
+        """Rend les séries temporelles stationnaires."""
+        self.returns = self.data.diff().dropna()
+
+    def detect_outliers(self):
+        """Détecte les valeurs aberrantes dans les données."""
+        st.write("**Détection et gestion des outliers**")
+        Q1 = self.returns.quantile(0.25)
+        Q3 = self.returns.quantile(0.75)
+        IQR = Q3 - Q1
+        outliers = (self.returns < (Q1 - 1.5 * IQR)) | (self.returns > (Q3 + 1.5 * IQR))
+        st.write(f"Nombre d'outliers détectés : {outliers.sum().sum()}")
+
+    def scale_data(self):
+        """Normalise les données."""
+        scaler = StandardScaler()
+        self.returns = pd.DataFrame(scaler.fit_transform(self.returns), index=self.returns.index, columns=self.returns.columns)
+        
+        min_max_scaler = MinMaxScaler()
+        self.data = pd.DataFrame(min_max_scaler.fit_transform(self.data), index=self.data.index, columns=self.data.columns)
+        
+        st.write("**Les données ont été standardisées et mises à la même échelle**")
 
     def calculate_hedging_ratio(self, asset1, asset2):
         """Calcule le ratio de couverture entre deux actifs."""
@@ -194,6 +242,7 @@ def main():
     # Création et utilisation de l'analyseur
     analyzer = ComprehensiveCryptoAnalyzer(tickers, names, start_date)
     analyzer.fetch_data()
+    analyzer.prepare_data()  # Ajout de l'étape de préparation des données
     analyzer.analyze_relationships(investment_amount)
 
     # Explication des résultats
@@ -201,6 +250,7 @@ def main():
     <div class="explanation">
         <h3>Interprétation des résultats 📈</h3>
         <ul>
+            <li><strong>Prétraitement des données :</strong> Les données sont nettoyées, rendues stationnaires et normalisées pour une analyse plus précise.</li>
             <li><strong>Hedging Ratio :</strong> Indique combien d'unités de l'autre crypto sont nécessaires pour couvrir une unité de Bitcoin.</li>
             <li><strong>Spread :</strong> Représente la différence entre le prix du Bitcoin et le prix ajusté (par le hedging ratio) de l'autre crypto.</li>
             <li><strong>Signaux d'achat/vente :</strong> Basés sur la position du spread par rapport à sa moyenne historique.</li>
