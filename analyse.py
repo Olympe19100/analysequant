@@ -56,7 +56,7 @@ class ComprehensiveCryptoAnalyzer:
             for j in range(i+1, n):
                 ticker1, ticker2 = self.tickers[i], self.tickers[j]
                 _, pvalue, _ = coint(self.scaled_data[ticker1], self.scaled_data[ticker2])
-                if pvalue < 0.01:  # Utilisation du seuil de 0.01
+                if pvalue < 0.05:  # Utilisation du seuil de 0.01
                     self.pairs.append((ticker1, ticker2))
                     st.info(f"**{ticker1} et {ticker2} sont co-intégrés (p-value={pvalue:.4f})**")
                 else:
