@@ -17,46 +17,46 @@ st.markdown("""
     <style>
     .big-font {
         font-size: 48px !important;
-        color: #3366cc;
+        color: #1e3d59;
         text-align: center;
         margin-bottom: 30px;
     }
     .subheader {
         font-size: 28px;
-        color: #1a53ff;
+        color: #1e3d59;
         margin-top: 20px;
         margin-bottom: 10px;
     }
     .info-box {
-        background-color: #e6f2ff;
+        background-color: #f5f0e1;
+        color: #1e3d59;
         padding: 20px;
         border-radius: 10px;
         margin-bottom: 20px;
-        border: 1px solid #b3d9ff;
+        border: 1px solid #ff6e40;
     }
     .explanation {
-        background-color: #f0f8ff;
+        background-color: #ffc13b;
+        color: #1e3d59;
         padding: 15px;
         border-radius: 8px;
         margin-bottom: 15px;
-        border-left: 5px solid #4d94ff;
+        border-left: 5px solid #ff6e40;
+    }
+    body {
+        color: #1e3d59;
+        background-color: #f5f0e1;
+    }
+    .stButton>button {
+        color: #f5f0e1;
+        background-color: #ff6e40;
+        border-color: #ff6e40;
+    }
+    .stTextInput>div>div>input {
+        color: #1e3d59;
     }
     </style>
     """, unsafe_allow_html=True)
-
-st.markdown('<p class="big-font">📊 Analyse Crypto Avancée</p>', unsafe_allow_html=True)
-
-# Explication simplifiée de la cointégration
-st.markdown("""
-    <div class="explanation">
-        <h3>Qu'est-ce que la cointégration ? 🤔</h3>
-        <p>Imaginez deux amis marchant ensemble. Parfois, l'un va plus vite, parfois c'est l'autre, 
-        mais ils restent toujours proches l'un de l'autre. C'est comme ça que fonctionnent deux actifs cointégrés !</p>
-        <p>En termes financiers, cela signifie que même si les prix de deux cryptomonnaies fluctuent, 
-        ils ont tendance à suivre une trajectoire similaire sur le long terme. Cette relation peut être 
-        utilisée pour prédire les mouvements futurs et créer des stratégies de trading.</p>
-    </div>
-""", unsafe_allow_html=True)
 
 class CointegrationStrategies:
     def __init__(self, data):
@@ -110,6 +110,7 @@ class ComprehensiveCryptoCommoAnalyzer:
         self.returns = None
         self.significant_vars = []
         self.cointegration = None
+        self.latest_prices = None
 
     def fetch_data(self):
         st.markdown('<p class="subheader">Téléchargement des données historiques 📊</p>', unsafe_allow_html=True)
@@ -125,6 +126,7 @@ class ComprehensiveCryptoCommoAnalyzer:
         if data_dict:
             self.data = pd.DataFrame(data_dict)
             self.returns = self.data.pct_change().dropna()
+            self.latest_prices = self.data.iloc[-1]
             if missing_tickers:
                 st.error(f"Les tickers suivants n'ont pas pu être téléchargés : {missing_tickers}")
             else:
@@ -242,7 +244,7 @@ class ComprehensiveCryptoCommoAnalyzer:
                 autosize=False, 
                 width=800, 
                 height=400,
-                template="plotly_white"  # Utilisation d'un template plus esthétique
+                template="plotly_white"
             )
             st.plotly_chart(fig)
             
@@ -250,13 +252,25 @@ class ComprehensiveCryptoCommoAnalyzer:
             buy_signal = signal < signal.quantile(0.25)
             sell_signal = signal > signal.quantile(0.75)
             
-            st.markdown(f"<div class='info-box'><h3>Signaux de trading pour la paire Bitcoin - {self.names[self.tickers.index(col)]} :</h3>"
+            position_size = ((sell_signal.sum() - buy_signal.sum()) / (sell_signal.sum() + buy_signal.sum()) * 100)
+            
+            # Calcul du nombre d'unités à acheter
+            investment = 10000  # Investissement hypothétique de 10000$
+            btc_price = self.latest_prices['BTC-USD']
+            other_price = self.latest_prices[col]
+            
+            btc_units = (investment * abs(position_size) / 100) / btc_price
+            other_units = (investment * (100 - abs(position_size)) / 100) / other_price
+            
+            st.markdown(f"<div class='info-box'><h3>Stratégie pour la paire Bitcoin - {self.names[self.tickers.index(col)]} :</h3>"
                         f"Nombre de signaux d'achat : {buy_signal.sum()}<br>"
                         f"Nombre de signaux de vente : {sell_signal.sum()}<br>"
-                        f"Taille de position suggérée : {((sell_signal.sum() - buy_signal.sum()) / (sell_signal.sum() + buy_signal.sum()) * 100):.2f}%"
+                        f"Taille de position suggérée : {position_size:.2f}%<br>"
+                        f"Pour un investissement de 10000$ :<br>"
+                        f"- Acheter {btc_units:.4f} unités de Bitcoin<br>"
+                        f"- Acheter {other_units:.4f} unités de {self.names[self.tickers.index(col)]}"
                         "</div>", unsafe_allow_html=True)
 
-# Fonction principale Streamlit avec une navigation simplifiée
 def main():
     st.sidebar.header("📌 Navigation")
     page = st.sidebar.radio("Choisissez une section :", ["Accueil", "Analyse des cryptomonnaies"])
@@ -269,6 +283,7 @@ def main():
     analyzer = ComprehensiveCryptoCommoAnalyzer(tickers, names, start_date)
 
     if page == "Accueil":
+        st.markdown('<p class="big-font">📊 Analyse Crypto Avancée</p>', unsafe_allow_html=True)
         st.write("## Bienvenue dans l'analyseur de cryptomonnaies ! 👋")
         st.write("Cet outil vous aide à comprendre les relations entre Bitcoin et d'autres cryptomonnaies.")
         st.info("👈 Utilisez le menu à gauche pour commencer l'analyse.")
@@ -280,12 +295,13 @@ def main():
                 <li>Choisissez la date de début de l'analyse dans le menu latéral.</li>
                 <li>Naviguez vers la section "Analyse des cryptomonnaies".</li>
                 <li>Explorez les résultats de l'analyse, y compris les relations de cointégration et les signaux de trading.</li>
+                <li>Découvrez combien d'unités de chaque cryptomonnaie acheter selon la stratégie recommandée.</li>
             </ol>
         </div>
         """, unsafe_allow_html=True)
 
     elif page == "Analyse des cryptomonnaies":
-        st.write("## Analyse des cryptomonnaies 🚀")
+        st.markdown('<p class="big-font">Analyse des cryptomonnaies 🚀</p>', unsafe_allow_html=True)
         
         with st.spinner("Chargement et préparation des données..."):
             analyzer.fetch_data()
@@ -297,7 +313,8 @@ def main():
         <div class="explanation">
             <h3>Que signifient ces résultats ? 🤔</h3>
             <p>L'analyse montre comment les différentes cryptomonnaies sont liées à Bitcoin. 
-            Les relations significatives peuvent indiquer des opportunités de trading ou des tendances du marché.</p>
+            Les relations significatives peuvent indiquer des opportunités de trading ou des tendances du marché.
+            Nous calculons également le nombre d'unités à acheter pour chaque cryptomonnaie basé sur un investissement hypothétique de 10000$.</p>
         </div>
         """, unsafe_allow_html=True)
         
@@ -311,6 +328,7 @@ def main():
                 <li>Les paires co-intégrées indiquent des cryptomonnaies qui ont tendance à évoluer ensemble sur le long terme.</li>
                 <li>Les signaux d'achat et de vente suggèrent des moments potentiels pour entrer ou sortir du marché.</li>
                 <li>Le modèle de forêt aléatoire montre quelles cryptomonnaies ont le plus d'impact sur le prix du Bitcoin.</li>
+                <li>Le nombre d'unités à acheter est calculé en fonction de la taille de position suggérée et des prix actuels.</li>
             </ul>
         </div>
         """, unsafe_allow_html=True)
