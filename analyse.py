@@ -21,7 +21,7 @@ theme_colors = {
     'secondary': '#006699',  # Lighter blue
     'background': '#F0F8FF',  # Light background
     'highlight': '#FFD700',  # Gold for highlights
-    'text': '#333333'  # Dark grey for general text
+    'text': '#000000'  # Black for general text
 }
 
 st.markdown(f"""
@@ -40,6 +40,7 @@ st.markdown(f"""
         padding: 20px;
         border-radius: 10px;
         border-left: 5px solid {theme_colors['highlight']};
+        color: {theme_colors['text']};
     }}
     .success-message {{
         color: {theme_colors['primary']};
