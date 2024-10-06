@@ -9,7 +9,6 @@ from scipy import stats
 from statsmodels.tsa.ar_model import AutoReg
 from pykalman import KalmanFilter
 import statsmodels.api as sm
-import matplotlib.pyplot as plt
 
 # Configuration de la page Streamlit
 st.set_page_config(page_title="Analyse Crypto Avancée", page_icon="📈", layout="wide")
@@ -167,13 +166,13 @@ class ComprehensiveCryptoAnalyzer:
         st.markdown('<p class="subheader">Ratios des Prix entre Paires Co-Intégrées</p>', unsafe_allow_html=True)
         for ticker1, ticker2 in self.pairs:
             ratio = self.scaled_data[ticker1] / self.scaled_data[ticker2]
-            plt.figure(figsize=(15, 7))
-            plt.plot(ratio.index, ratio.values)
-            plt.axhline(ratio.mean(), color='red', linestyle='--')
-            plt.xlabel('Date')
-            plt.ylabel('Ratio de Prix')
-            plt.title(f'Ratio des Prix entre {ticker1} et {ticker2}')
-            st.pyplot(plt)
+            fig = go.Figure()
+            fig.add_trace(go.Scatter(x=ratio.index, y=ratio.values, mode='lines', name='Ratio de Prix'))
+            fig.add_hline(y=ratio.mean(), line_dash="dash", line_color="red")
+            fig.update_layout(title=f'Ratio des Prix entre {ticker1} et {ticker2}',
+                             xaxis_title='Date',
+                             yaxis_title='Ratio de Prix')
+            st.plotly_chart(fig)
 
     def run_analysis(self, investment_amount):
         """Exécute l'analyse complète."""
