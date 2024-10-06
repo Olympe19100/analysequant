@@ -9,6 +9,7 @@ from scipy import stats
 from statsmodels.tsa.ar_model import AutoReg
 from pykalman import KalmanFilter
 import statsmodels.api as sm
+import matplotlib.pyplot as plt
 
 # Configuration de la page Streamlit
 st.set_page_config(page_title="Analyse Crypto Avancée", page_icon="📈", layout="wide")
@@ -142,8 +143,8 @@ class ComprehensiveCryptoAnalyzer:
         """Normalise les données sur une échelle de 0 à 1."""
         st.write("Normalisation des données...")
         scaler = MinMaxScaler()
-        self.scaled_data = pd.DataFrame(scaler.fit_transform(self.data), 
-                                        index=self.data.index, 
+        self.scaled_data = pd.DataFrame(scaler.fit_transform(self.data),
+                                        index=self.data.index,
                                         columns=self.data.columns)
         st.write("Les données ont été mises à l'échelle entre 0 et 1")
 
@@ -161,6 +162,19 @@ class ComprehensiveCryptoAnalyzer:
                 else:
                     st.write(f"{ticker1} et {ticker2} ne sont pas co-intégrés (p-value={pvalue:.4f})")
 
+    def plot_price_ratios(self):
+        """Trace les ratios des prix entre les paires co-intégrées."""
+        st.markdown('<p class="subheader">Ratios des Prix entre Paires Co-Intégrées</p>', unsafe_allow_html=True)
+        for ticker1, ticker2 in self.pairs:
+            ratio = self.scaled_data[ticker1] / self.scaled_data[ticker2]
+            plt.figure(figsize=(15, 7))
+            plt.plot(ratio.index, ratio.values)
+            plt.axhline(ratio.mean(), color='red', linestyle='--')
+            plt.xlabel('Date')
+            plt.ylabel('Ratio de Prix')
+            plt.title(f'Ratio des Prix entre {ticker1} et {ticker2}')
+            st.pyplot(plt)
+
     def run_analysis(self, investment_amount):
         """Exécute l'analyse complète."""
         st.write("Début de l'analyse...")
@@ -171,6 +185,7 @@ class ComprehensiveCryptoAnalyzer:
         
         self.prepare_data()
         self.test_cointegration()
+        self.plot_price_ratios()
         
         st.markdown('<p class="subheader">Résultats du Trading par Paires</p>', unsafe_allow_html=True)
         for ticker1, ticker2 in self.pairs:
