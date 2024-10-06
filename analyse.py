@@ -5,6 +5,7 @@ from sklearn.preprocessing import StandardScaler, MinMaxScaler
 from statsmodels.tsa.stattools import adfuller, grangercausalitytests, coint
 from sklearn.feature_selection import mutual_info_regression
 from sklearn.ensemble import RandomForestRegressor
+from sklearn.linear_model import Ridge
 from sklearn.metrics import r2_score
 import plotly.graph_objects as go
 import streamlit as st
@@ -112,7 +113,7 @@ class ComprehensiveCryptoCommoAnalyzer:
 
     def random_forest_model(self):
         """
-        Construire un modèle Forêt Aléatoire basé sur les meilleures dérivées et inverses des actifs, excepté Bitcoin, et afficher le R².
+        Construire un modèle Forêt Aléatoire avec régularisation L2 basé sur les meilleures dérivées et inverses des actifs, excepté Bitcoin, et afficher le R².
         """
         st.markdown("### Modèle Forêt Aléatoire avec Meilleures Dérivées et Inverses des Actifs 🌲")
         st.write("Nous construisons un modèle de Forêt Aléatoire pour prédire les rendements de Bitcoin en utilisant les meilleures dérivées et inverses des autres actifs, sans utiliser Bitcoin lui-même.")
@@ -133,8 +134,8 @@ class ComprehensiveCryptoCommoAnalyzer:
         X = pd.DataFrame(best_features, index=self.returns.index)
         y = self.returns['BTC-USD']
 
-        # Modèle Forêt Aléatoire
-        rf_model = RandomForestRegressor(n_estimators=100, random_state=42)
+        # Modèle Forêt Aléatoire avec régularisation L2
+        rf_model = RandomForestRegressor(n_estimators=100, random_state=42, max_features='sqrt')
         rf_model.fit(X, y)
 
         # Prédiction
@@ -196,29 +197,21 @@ class ComprehensiveCryptoCommoAnalyzer:
 
 
 def main():
-    st.title("💡 Analyse des Relations entre Bitcoin et Autres Actifs Financiers")
-    st.write("Bienvenue dans cette application d'analyse financière qui explore les liens entre Bitcoin et divers autres actifs.")
+    st.title("💡 Analyse des Relations entre Bitcoin et Autres Cryptomonnaies")
+    st.write("Bienvenue dans cette application d'analyse financière qui explore les liens entre Bitcoin et diverses cryptomonnaies.")
 
-    # Liste des tickers et noms réels des actifs financiers
+    # Liste des tickers et noms réels des cryptomonnaies
     tickers = [
-        'BTC-USD', 'SPY', 'QQQ', '^GDAXI', '^FTSE', 'CL=F', 'BZ=F', 'NG=F',
-        'GC=F', 'SI=F', 'PL=F', 'PA=F', 'HG=F', 'ZN=F', 'ZW=F',
-        'ZC=F', 'ZS=F', 'KC=F', 'CT=F', 'CC=F', 'SB=F', 'OJ=F', 'LE=F', 'HE=F',
-        'RB=F', 'HO=F', 'EURUSD=X', 'GBPUSD=X', 'TLT', 'LQD', 'HYG'
+        'BTC-USD', 'ETH-USD', 'BNB-USD', 'ADA-USD', 'SOL-USD', 'XRP-USD', 'DOGE-USD', 'DOT-USD', 'AVAX-USD'
     ]
     
     # Noms réels des actifs financiers correspondants
     names = [
-        'Bitcoin (BTC)', 'S&P 500 (SPY)', 'Nasdaq 100 (QQQ)', 'DAX Allemagne (^GDAXI)', 'FTSE 100 (^FTSE)',
-        'Pétrole WTI (CL=F)', 'Pétrole Brent (BZ=F)', 'Gaz Naturel (NG=F)', 'Or (GC=F)', 'Argent (SI=F)',
-        'Platine (PL=F)', 'Palladium (PA=F)', 'Cuivre (HG=F)', 'Zinc (ZN=F)', 'Blé (ZW=F)',
-        'Maïs (ZC=F)', 'Soja (ZS=F)', 'Café (KC=F)', 'Coton (CT=F)', 'Cacao (CC=F)', 'Sucre (SB=F)',
-        'Jus d\'Orange (OJ=F)', 'Bétail (LE=F)', 'Porcs (HE=F)', 'Essence (RB=F)', 'Fuel (HO=F)',
-        'Euro-Dollar (EURUSD=X)', 'Livre Sterling-Dollar (GBPUSD=X)', 'Obligations US 20 ans (TLT)',
-        'Obligations d\'entreprises (LQD)', 'Obligations à haut rendement (HYG)'
+        'Bitcoin (BTC)', 'Ethereum (ETH)', 'Binance Coin (BNB)', 'Cardano (ADA)', 'Solana (SOL)',
+        'Ripple (XRP)', 'Dogecoin (DOGE)', 'Polkadot (DOT)', 'Avalanche (AVAX)'
     ]
 
-    start_date = '2010-07-18'
+    start_date = '2018-01-01'
 
     analyzer = ComprehensiveCryptoCommoAnalyzer(tickers, names, start_date)
 
