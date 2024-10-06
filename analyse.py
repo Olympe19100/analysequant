@@ -1,7 +1,7 @@
 import pandas as pd
 import numpy as np
 import yfinance as yf
-from sklearn.preprocessing import StandardScaler
+from sklearn.preprocessing import StandardScaler, MinMaxScaler
 from statsmodels.tsa.stattools import adfuller, grangercausalitytests, coint
 from sklearn.feature_selection import mutual_info_regression
 from sklearn.ensemble import RandomForestRegressor
@@ -102,11 +102,13 @@ class ComprehensiveCryptoCommoAnalyzer:
 
     def scale_data(self):
         """
-        Standardisation des données.
+        Standardisation des données et mise à la même échelle.
         """
         scaler = StandardScaler()
         self.returns = pd.DataFrame(scaler.fit_transform(self.returns), index=self.returns.index, columns=self.returns.columns)
-        st.write("**Les données ont été standardisées**")
+        min_max_scaler = MinMaxScaler()
+        self.data = pd.DataFrame(min_max_scaler.fit_transform(self.data), index=self.data.index, columns=self.data.columns)
+        st.write("**Les données ont été standardisées et mises à la même échelle**")
 
     def random_forest_model(self):
         """
@@ -189,7 +191,7 @@ class ComprehensiveCryptoCommoAnalyzer:
             fig = go.Figure()
             fig.add_trace(go.Scatter(x=self.data.index, y=self.data['BTC-USD'], mode='lines', name='Bitcoin (BTC)'))
             fig.add_trace(go.Scatter(x=self.data.index, y=self.data[col], mode='lines', name=self.names[self.tickers.index(col)]))
-            fig.update_layout(title=f"Relation entre Bitcoin et {self.names[self.tickers.index(col)]}", xaxis_title="Date", yaxis_title="Prix", autosize=False, width=800, height=400)
+            fig.update_layout(title=f"Relation entre Bitcoin et {self.names[self.tickers.index(col)]}", xaxis_title="Date", yaxis_title="Prix (mis à la même échelle)", autosize=False, width=800, height=400)
             st.plotly_chart(fig)
 
 
