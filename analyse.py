@@ -224,4 +224,14 @@ def main():
         'Bitcoin (BTC)', 'Ethereum (ETH)', 'Binance Coin (BNB)', 'Cardano (ADA)', 'Solana (SOL)',
         'Ripple (XRP)', 'Dogecoin (DOGE)', 'Polkadot (DOT)', 'Avalanche (AVAX)', 'Polygon (MATIC)',
         'Litecoin (LTC)', 'Chainlink (LINK)', 'Uniswap (UNI)', 'Cosmos (ATOM)', 'Monero (XMR)',
-        'Algorand (ALGO
+        'Algorand (ALGO)', 'Filecoin (FIL)', 'VeChain (VET)'
+    ]
+
+    start_date = '2018-01-01'
+
+    analyzer = ComprehensiveCryptoCommoAnalyzer(tickers, names, start_date)
+
+    st.header('1. Téléchargement et Préparation des Données')
+    analyzer.fetch_data()
+    
+    # Préparation rigoureuse des données
