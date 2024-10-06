@@ -3,40 +3,61 @@ import numpy as np
 import yfinance as yf
 from sklearn.preprocessing import StandardScaler, MinMaxScaler
 from statsmodels.tsa.stattools import adfuller, grangercausalitytests, coint
-from sklearn.feature_selection import mutual_info_regression
 from sklearn.ensemble import RandomForestRegressor
-from sklearn.linear_model import Ridge
 from sklearn.metrics import r2_score
 import plotly.graph_objects as go
 import streamlit as st
 import statsmodels.api as sm
-import scipy.stats as stats
 from statsmodels.regression.linear_model import OLS
 
 st.set_page_config(page_title="Analyse Crypto", page_icon="📊", layout="wide")
 
+# Styles CSS améliorés
 st.markdown("""
     <style>
     .big-font {
-        font-size:50px !important;
-        color: #1E90FF;
+        font-size: 48px !important;
+        color: #3366cc;
         text-align: center;
+        margin-bottom: 30px;
     }
     .subheader {
-        font-size:30px;
-        color: #4682B4;
+        font-size: 28px;
+        color: #1a53ff;
+        margin-top: 20px;
+        margin-bottom: 10px;
     }
     .info-box {
-        background-color: #E6F3FF;
+        background-color: #e6f2ff;
         padding: 20px;
         border-radius: 10px;
+        margin-bottom: 20px;
+        border: 1px solid #b3d9ff;
+    }
+    .explanation {
+        background-color: #f0f8ff;
+        padding: 15px;
+        border-radius: 8px;
+        margin-bottom: 15px;
+        border-left: 5px solid #4d94ff;
     }
     </style>
     """, unsafe_allow_html=True)
 
 st.markdown('<p class="big-font">📊 Analyse Crypto Avancée</p>', unsafe_allow_html=True)
 
-# Classe pour les stratégies de co-intégration
+# Explication simplifiée de la cointégration
+st.markdown("""
+    <div class="explanation">
+        <h3>Qu'est-ce que la cointégration ? 🤔</h3>
+        <p>Imaginez deux amis marchant ensemble. Parfois, l'un va plus vite, parfois c'est l'autre, 
+        mais ils restent toujours proches l'un de l'autre. C'est comme ça que fonctionnent deux actifs cointégrés !</p>
+        <p>En termes financiers, cela signifie que même si les prix de deux cryptomonnaies fluctuent, 
+        ils ont tendance à suivre une trajectoire similaire sur le long terme. Cette relation peut être 
+        utilisée pour prédire les mouvements futurs et créer des stratégies de trading.</p>
+    </div>
+""", unsafe_allow_html=True)
+
 class CointegrationStrategies:
     def __init__(self, data):
         self.data = data
@@ -80,7 +101,6 @@ class CointegrationStrategies:
                         f"Taille de position suggérée : {((sell_signal.sum() - buy_signal.sum()) / (sell_signal.sum() + buy_signal.sum()) * 100):.2f}%"
                         "</div>", unsafe_allow_html=True)
 
-# Classe principale d'analyse
 class ComprehensiveCryptoCommoAnalyzer:
     def __init__(self, tickers, names, start_date):
         self.tickers = tickers
@@ -186,7 +206,7 @@ class ComprehensiveCryptoCommoAnalyzer:
         st.write(feature_importances.head(10))
 
     def plot_significant_relationships(self):
-        st.markdown('<p class="subheader">Visualisation des Relations Statistiquement Significatives 📊</p>', unsafe_allow_html=True)
+        st.markdown('<p class="subheader">Visualisation des Relations Importantes 📊</p>', unsafe_allow_html=True)
         
         significant_assets = []
         
@@ -215,9 +235,15 @@ class ComprehensiveCryptoCommoAnalyzer:
             fig = go.Figure()
             fig.add_trace(go.Scatter(x=self.data.index, y=self.data['BTC-USD'], mode='lines', name='Bitcoin (BTC)'))
             fig.add_trace(go.Scatter(x=self.data.index, y=self.data[col], mode='lines', name=self.names[self.tickers.index(col)]))
-            fig.update_layout(title=f"Relation entre Bitcoin et {self.names[self.tickers.index(col)]}", 
-                              xaxis_title="Date", yaxis_title="Prix (mis à la même échelle)", 
-                              autosize=False, width=800, height=400)
+            fig.update_layout(
+                title=f"Relation entre Bitcoin et {self.names[self.tickers.index(col)]}", 
+                xaxis_title="Date", 
+                yaxis_title="Prix (mis à la même échelle)", 
+                autosize=False, 
+                width=800, 
+                height=400,
+                template="plotly_white"  # Utilisation d'un template plus esthétique
+            )
             st.plotly_chart(fig)
             
             signal = self.data['BTC-USD'] - self.data[col]
@@ -230,10 +256,10 @@ class ComprehensiveCryptoCommoAnalyzer:
                         f"Taille de position suggérée : {((sell_signal.sum() - buy_signal.sum()) / (sell_signal.sum() + buy_signal.sum()) * 100):.2f}%"
                         "</div>", unsafe_allow_html=True)
 
-# Fonction principale Streamlit
+# Fonction principale Streamlit avec une navigation simplifiée
 def main():
     st.sidebar.header("📌 Navigation")
-    page = st.sidebar.radio("Choisissez une section :", ["Accueil", "Analyse des données", "Modélisation", "Visualisation"])
+    page = st.sidebar.radio("Choisissez une section :", ["Accueil", "Analyse des cryptomonnaies"])
 
     tickers = ['BTC-USD', 'ETH-USD', 'BNB-USD', 'ADA-USD', 'SOL-USD', 'XRP-USD', 'DOGE-USD']
     names = ['Bitcoin', 'Ethereum', 'Binance Coin', 'Cardano', 'Solana', 'Ripple', 'Dogecoin']
@@ -245,21 +271,49 @@ def main():
     if page == "Accueil":
         st.write("## Bienvenue dans l'analyseur de cryptomonnaies ! 👋")
         st.write("Cet outil vous aide à comprendre les relations entre Bitcoin et d'autres cryptomonnaies.")
-        st.info("👈 Utilisez le menu à gauche pour naviguer entre les différentes sections.")
+        st.info("👈 Utilisez le menu à gauche pour commencer l'analyse.")
+        
+        st.markdown("""
+        <div class="explanation">
+            <h3>Comment utiliser cet outil ? 🛠️</h3>
+            <ol>
+                <li>Choisissez la date de début de l'analyse dans le menu latéral.</li>
+                <li>Naviguez vers la section "Analyse des cryptomonnaies".</li>
+                <li>Explorez les résultats de l'analyse, y compris les relations de cointégration et les signaux de trading.</li>
+            </ol>
+        </div>
+        """, unsafe_allow_html=True)
 
-    elif page == "Analyse des données":
-        analyzer.fetch_data()
-        analyzer.prepare_data()
-
-    elif page == "Modélisation":
-        analyzer.fetch_data()
-        analyzer.prepare_data()
+    elif page == "Analyse des cryptomonnaies":
+        st.write("## Analyse des cryptomonnaies 🚀")
+        
+        with st.spinner("Chargement et préparation des données..."):
+            analyzer.fetch_data()
+            analyzer.prepare_data()
+        
+        st.success("Données préparées avec succès!")
+        
+        st.markdown("""
+        <div class="explanation">
+            <h3>Que signifient ces résultats ? 🤔</h3>
+            <p>L'analyse montre comment les différentes cryptomonnaies sont liées à Bitcoin. 
+            Les relations significatives peuvent indiquer des opportunités de trading ou des tendances du marché.</p>
+        </div>
+        """, unsafe_allow_html=True)
+        
         analyzer.random_forest_model()
-
-    elif page == "Visualisation":
-        analyzer.fetch_data()
-        analyzer.prepare_data()
         analyzer.plot_significant_relationships()
+        
+        st.markdown("""
+        <div class="info-box">
+            <h3>Interprétation des résultats 📈</h3>
+            <ul>
+                <li>Les paires co-intégrées indiquent des cryptomonnaies qui ont tendance à évoluer ensemble sur le long terme.</li>
+                <li>Les signaux d'achat et de vente suggèrent des moments potentiels pour entrer ou sortir du marché.</li>
+                <li>Le modèle de forêt aléatoire montre quelles cryptomonnaies ont le plus d'impact sur le prix du Bitcoin.</li>
+            </ul>
+        </div>
+        """, unsafe_allow_html=True)
 
 if __name__ == "__main__":
     main()
