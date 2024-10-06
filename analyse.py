@@ -3,11 +3,9 @@ import numpy as np
 import yfinance as yf
 from sklearn.preprocessing import StandardScaler, MinMaxScaler
 from statsmodels.tsa.stattools import adfuller, coint
-from sklearn.ensemble import RandomForestRegressor
-from sklearn.metrics import r2_score
 import plotly.graph_objects as go
 import streamlit as st
-from statsmodels.regression.linear_model import OLS
+from pykalman import KalmanFilter
 
 # Configuration de la page Streamlit
 st.set_page_config(page_title="Analyse Crypto Avancée", page_icon="📊", layout="wide")
@@ -66,10 +64,8 @@ class ComprehensiveCryptoAnalyzer:
         self.data = None
         self.returns = None
         self.latest_prices = None
-        self.ratios = {}
-        self.signals = {}
         self.cointegration_results = {}
-        self.hedging_ratios = {}
+        self.kalman_results = {}
 
     def fetch_data(self):
         """Télécharge les données historiques pour toutes les cryptomonnaies."""
@@ -140,28 +136,6 @@ class ComprehensiveCryptoAnalyzer:
         
         st.write("**Les données ont été standardisées et mises à la même échelle**")
 
-    def calculate_ratios(self):
-        """Calcule les ratios entre Bitcoin et les autres cryptomonnaies."""
-        st.markdown('<p class="subheader">Calcul des ratios</p>', unsafe_allow_html=True)
-        for col in self.data.columns:
-            if col != 'BTC-USD':
-                self.ratios[col] = self.data['BTC-USD'] / self.data[col]
-                st.write(f"Ratio calculé pour BTC/{col}")
-
-    def generate_signals(self):
-        """Génère des signaux basés sur les ratios et leurs moyennes mobiles."""
-        st.markdown('<p class="subheader">Génération des signaux de trading</p>', unsafe_allow_html=True)
-        for col, ratio in self.ratios.items():
-            short_ma = ratio.rolling(window=10).mean()
-            long_ma = ratio.rolling(window=30).mean()
-            
-            buy_signal = (short_ma > long_ma) & (short_ma.shift(1) <= long_ma.shift(1))
-            sell_signal = (short_ma < long_ma) & (short_ma.shift(1) >= long_ma.shift(1))
-            
-            self.signals[col] = pd.DataFrame({'Buy': buy_signal, 'Sell': sell_signal})
-            
-            st.write(f"Signaux générés pour BTC/{col}")
-
     def analyze_cointegration(self):
         """Analyse la cointégration entre Bitcoin et les autres cryptomonnaies."""
         st.markdown('<p class="subheader">Analyse de cointégration</p>', unsafe_allow_html=True)
@@ -171,94 +145,102 @@ class ComprehensiveCryptoAnalyzer:
                 self.cointegration_results[col] = pvalue
                 if pvalue < 0.05:
                     st.info(f"**{col} est co-intégré avec Bitcoin (p-value={pvalue:.4f})**")
-                    self.calculate_hedging_ratio('BTC-USD', col)
+                    self.apply_kalman_filter('BTC-USD', col)
 
-    def calculate_hedging_ratio(self, asset1, asset2):
-        """Calcule le ratio de couverture entre deux actifs."""
-        model = OLS(self.data[asset1], self.data[asset2]).fit()
-        self.hedging_ratios[asset2] = model.params[0]
-        st.write(f"Ratio de couverture pour {asset1}/{asset2} : {model.params[0]:.4f}")
+    def apply_kalman_filter(self, asset1, asset2):
+        """Applique un filtre de Kalman pour estimer dynamiquement alpha et beta."""
+        delta = 1e-5
+        trans_cov = delta / (1 - delta) * np.eye(2)
+        obs_mat = np.vstack([self.data[asset2], np.ones(self.data[asset2].shape)]).T[:, np.newaxis]
 
-    def random_forest_model(self):
-        """Crée un modèle de forêt aléatoire pour prédire les rendements de Bitcoin."""
-        st.markdown('<p class="subheader">Modèle Forêt Aléatoire</p>', unsafe_allow_html=True)
-        
-        features = self.returns.drop('BTC-USD', axis=1)
-        target = self.returns['BTC-USD']
-        
-        rf_model = RandomForestRegressor(n_estimators=100, random_state=42)
-        rf_model.fit(features, target)
-        
-        predictions = rf_model.predict(features)
-        r2 = r2_score(target, predictions)
-        
-        st.write(f"R2 score du modèle : {r2:.4f}")
-        
-        feature_importance = pd.Series(rf_model.feature_importances_, index=features.columns).sort_values(ascending=False)
-        st.write("Importance des caractéristiques :")
-        st.write(feature_importance)
+        kf = KalmanFilter(n_dim_obs=1, n_dim_state=2,
+                          initial_state_mean=np.zeros(2),
+                          initial_state_covariance=np.ones((2, 2)),
+                          transition_matrices=np.eye(2),
+                          observation_matrices=obs_mat,
+                          observation_covariance=1.0,
+                          transition_covariance=trans_cov)
 
-    def plot_results(self):
-        """Trace les graphiques des prix, ratios et signaux."""
-        st.markdown('<p class="subheader">Visualisation des Résultats</p>', unsafe_allow_html=True)
-        for col in self.data.columns:
-            if col != 'BTC-USD':
-                fig = go.Figure()
-                fig.add_trace(go.Scatter(x=self.data.index, y=self.data['BTC-USD'], mode='lines', name='Bitcoin'))
-                fig.add_trace(go.Scatter(x=self.data.index, y=self.data[col], mode='lines', name=col))
-                fig.add_trace(go.Scatter(x=self.ratios[col].index, y=self.ratios[col], mode='lines', name=f'Ratio BTC/{col}', yaxis="y2"))
-                
-                # Ajout des signaux d'achat et de vente
-                buy_signals = self.signals[col]['Buy']
-                sell_signals = self.signals[col]['Sell']
-                fig.add_trace(go.Scatter(x=buy_signals[buy_signals].index, y=self.data.loc[buy_signals[buy_signals].index, 'BTC-USD'],
-                                         mode='markers', name='Signal d\'achat', marker=dict(symbol='triangle-up', size=10, color='green')))
-                fig.add_trace(go.Scatter(x=sell_signals[sell_signals].index, y=self.data.loc[sell_signals[sell_signals].index, 'BTC-USD'],
-                                         mode='markers', name='Signal de vente', marker=dict(symbol='triangle-down', size=10, color='red')))
-                
-                fig.update_layout(title=f"Prix, Ratio et Signaux pour BTC/{col}",
-                                  xaxis_title="Date",
-                                  yaxis_title="Prix",
-                                  yaxis2=dict(title="Ratio", overlaying="y", side="right"))
-                
-                st.plotly_chart(fig)
+        state_means, state_covs = kf.filter(self.data[asset1].values)
+
+        self.kalman_results[asset2] = {
+            'beta': state_means[:, 0],
+            'alpha': state_means[:, 1]
+        }
+
+    def generate_trading_signals(self, asset1, asset2, investment_amount, threshold=2):
+        """Génère des signaux de trading basés sur les résultats du filtre de Kalman."""
+        beta = self.kalman_results[asset2]['beta'][-1]
+        alpha = self.kalman_results[asset2]['alpha'][-1]
+        
+        residuals = self.data[asset1] - (alpha + beta * self.data[asset2])
+        z_score = (residuals - residuals.mean()) / residuals.std()
+        
+        last_residual = z_score.iloc[-1]
+        
+        if abs(last_residual) > threshold:
+            action = "Vendre" if last_residual > 0 else "Acheter"
+            n = investment_amount / (2 * self.latest_prices[asset1])  # Diviser l'investissement en deux
+            
+            return {
+                'action_asset1': action,
+                'quantity_asset1': n,
+                'action_asset2': "Acheter" if action == "Vendre" else "Vendre",
+                'quantity_asset2': n * beta
+            }
+        else:
+            return None
 
     def run_analysis(self, investment_amount):
         """Exécute l'analyse complète."""
         self.fetch_data()
         self.prepare_data()
-        self.calculate_ratios()
-        self.generate_signals()
         self.analyze_cointegration()
-        self.random_forest_model()
-        self.plot_results()
         
         st.markdown('<p class="subheader">Résumé de l\'Analyse et Recommandations</p>', unsafe_allow_html=True)
         for col in self.data.columns:
-            if col != 'BTC-USD':
-                latest_signal = self.signals[col].iloc[-1]
-                action = "Acheter" if latest_signal['Buy'] else "Vendre" if latest_signal['Sell'] else "Conserver"
+            if col != 'BTC-USD' and self.cointegration_results.get(col, 1) < 0.05:
+                signals = self.generate_trading_signals('BTC-USD', col, investment_amount)
                 
-                cointegrated = self.cointegration_results.get(col, 1) < 0.05
-                hedging_ratio = self.hedging_ratios.get(col, None)
+                if signals:
+                    st.markdown(f"""
+                    <div class='info-box'>
+                        <h3>Analyse pour la paire Bitcoin - {self.names[self.tickers.index(col)]} :</h3>
+                        <p><strong>Cointegration :</strong> Oui (p-value={self.cointegration_results[col]:.4f})</p>
+                        <p><strong>Recommandation :</strong><br>
+                        {signals['action_asset1']} {signals['quantity_asset1']:.4f} unités de Bitcoin<br>
+                        {signals['action_asset2']} {signals['quantity_asset2']:.4f} unités de {self.names[self.tickers.index(col)]}</p>
+                        <p><strong>Prix actuels :</strong><br>
+                        Bitcoin (BTC) : {self.latest_prices['BTC-USD']:.2f}$<br>
+                        {self.names[self.tickers.index(col)]} : {self.latest_prices[col]:.2f}$</p>
+                    </div>
+                    """, unsafe_allow_html=True)
+                else:
+                    st.info(f"Pas de signal de trading pour la paire Bitcoin - {self.names[self.tickers.index(col)]} actuellement.")
+
+        self.plot_results()
+
+    def plot_results(self):
+        """Trace les graphiques des prix et des résidus."""
+        st.markdown('<p class="subheader">Visualisation des Résultats</p>', unsafe_allow_html=True)
+        for col in self.data.columns:
+            if col != 'BTC-USD' and col in self.kalman_results:
+                fig = go.Figure()
+                fig.add_trace(go.Scatter(x=self.data.index, y=self.data['BTC-USD'], mode='lines', name='Bitcoin'))
+                fig.add_trace(go.Scatter(x=self.data.index, y=self.data[col], mode='lines', name=col))
                 
-                st.markdown(f"""
-                <div class='info-box'>
-                    <h3>Analyse pour la paire Bitcoin - {self.names[self.tickers.index(col)]} :</h3>
-                    <p><strong>Signal actuel :</strong> {action} Bitcoin</p>
-                    <p><strong>Cointegration :</strong> {'Oui' if cointegrated else 'Non'}</p>
-                    {f"<p><strong>Ratio de couverture :</strong> {hedging_ratio:.4f}</p>" if hedging_ratio else ""}
-                    <p><strong>Recommandation :</strong><br>
-                    {action} Bitcoin pour un montant de {investment_amount/2:.2f}$<br>
-                    {"Acheter" if action == "Vendre" else "Vendre"} {self.names[self.tickers.index(col)]} pour un montant de {investment_amount/2:.2f}$</p>
-                    <p><strong>Prix actuels :</strong><br>
-                    Bitcoin (BTC) : {self.latest_prices['BTC-USD']:.2f}$<br>
-                    {self.names[self.tickers.index(col)]} : {self.latest_prices[col]:.2f}$</p>
-                </div>
-                """, unsafe_allow_html=True)
+                residuals = self.data['BTC-USD'] - (self.kalman_results[col]['alpha'] + self.kalman_results[col]['beta'] * self.data[col])
+                fig.add_trace(go.Scatter(x=self.data.index, y=residuals, mode='lines', name='Residuals', yaxis="y2"))
+                
+                fig.update_layout(title=f"Prix et Résidus pour Bitcoin et {col}",
+                                  xaxis_title="Date",
+                                  yaxis_title="Prix",
+                                  yaxis2=dict(title="Résidus", overlaying="y", side="right"))
+                
+                st.plotly_chart(fig)
 
 def main():
-    st.markdown('<p class="big-font">Analyse Crypto Avancée</p>', unsafe_allow_html=True)
+    st.markdown('<p class="big-font">Analyse Crypto Avancée avec Cointégration</p>', unsafe_allow_html=True)
 
     st.markdown("""
     <div class="explanation">
@@ -293,10 +275,10 @@ def main():
         <div class="explanation">
             <h3>Interprétation des résultats</h3>
             <ul>
-                <li><strong>Signaux de trading :</strong> Basés sur les croisements des moyennes mobiles des ratios de prix.</li>
                 <li><strong>Cointégration :</strong> Indique une relation à long terme entre les cryptomonnaies.</li>
-                <li><strong>Ratio de couverture :</strong> Suggère la proportion optimale pour une stratégie de trading par paires.</li>
-                <li><strong>Modèle Forêt Aléatoire :</strong> Montre l'importance relative de chaque cryptomonnaie dans la prédiction des rendements de Bitcoin.</li>
+                <li><strong>Filtre de Kalman :</strong> Estime dynamiquement les paramètres du modèle (alpha et beta).</li>
+                <li><strong>Signaux de trading :</strong> Basés sur les déviations des résidus par rapport à leur moyenne.</li>
+                <li><strong>Graphiques :</strong> Montrent l'évolution des prix et des résidus au fil du temps, permettant de visualiser les opportunités de trading.</li>
             </ul>
             <p><em>Note : Ces analyses sont basées sur des données historiques et ne garantissent pas les performances futures. Utilisez ces informations en conjonction avec d'autres outils et votre propre jugement pour prendre des décisions d'investissement.</em></p>
         </div>
