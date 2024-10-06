@@ -69,20 +69,20 @@ class CointegrationStrategies:
                 _, pvalue, _ = coint(self.data[asset1], self.data[asset2])
                 if pvalue < 0.05:
                     self.pairs.append((asset1, asset2))
-                    st.info(f"<div class='info-box'><strong>Paire co-intégrée : {asset1} et {asset2} (p-value={pvalue:.4f})</strong></div>", unsafe_allow_html=True)
+                    st.markdown(f"<div class='info-box'><strong>Paire co-intégrée : {asset1} et {asset2} (p-value={pvalue:.4f})</strong></div>", unsafe_allow_html=True)
 
     def calculate_hedge_ratios(self):
         st.markdown('<p class="subheader">Calcul des ratios de couverture 📈</p>', unsafe_allow_html=True)
         for asset1, asset2 in self.pairs:
             model = OLS(self.data[asset1], sm.add_constant(self.data[asset2])).fit()
             self.coverage_ratios[(asset1, asset2)] = model.params[1]
-            st.write(f"<div class='info-box'>Ratio de couverture pour {asset1}/{asset2} : {model.params[1]:.4f}</div>", unsafe_allow_html=True)
+            st.markdown(f"<div class='info-box'>Ratio de couverture pour {asset1}/{asset2} : {model.params[1]:.4f}</div>", unsafe_allow_html=True)
 
     def calculate_spreads(self):
         st.markdown('<p class="subheader">Calcul des spreads 📉</p>', unsafe_allow_html=True)
         for (asset1, asset2), ratio in self.coverage_ratios.items():
             self.spreads[(asset1, asset2)] = self.data[asset1] - ratio * self.data[asset2]
-            st.write(f"<div class='info-box'>Spread calculé pour la paire {asset1}/{asset2}</div>", unsafe_allow_html=True)
+            st.markdown(f"<div class='info-box'>Spread calculé pour la paire {asset1}/{asset2}</div>", unsafe_allow_html=True)
 
     def generate_signals(self):
         st.markdown('<p class="subheader">Génération des signaux de trading 🚦</p>', unsafe_allow_html=True)
@@ -122,7 +122,7 @@ class ComprehensiveCryptoCommoAnalyzer:
             self.data = pd.DataFrame(data_dict)
             self.returns = self.data.pct_change().dropna()
             if missing_tickers:
-                st.error(f"<span class='warning-message'>Les tickers suivants n'ont pas pu être téléchargés : {missing_tickers}</span>", unsafe_allow_html=True)
+                st.markdown(f"<span class='warning-message'>Les tickers suivants n'ont pas pu être téléchargés : {missing_tickers}</span>", unsafe_allow_html=True)
             else:
                 st.markdown(f"<span class='success-message'>Toutes les données ont été téléchargées avec succès!</span>", unsafe_allow_html=True)
 
@@ -144,7 +144,7 @@ class ComprehensiveCryptoCommoAnalyzer:
         for column in self.data.columns:
             result = adfuller(self.data[column].dropna())
             if result[1] > 0.05:
-                st.warning(f"<div class='warning-message'>La série pour {column} n'est pas stationnaire.</div>", unsafe_allow_html=True)
+                st.markdown(f"<div class='warning-message'>La série pour {column} n'est pas stationnaire.</div>", unsafe_allow_html=True)
             else:
                 st.markdown(f"<div class='success-message'>La série pour {column} est stationnaire.</div>", unsafe_allow_html=True)
 
@@ -157,7 +157,7 @@ class ComprehensiveCryptoCommoAnalyzer:
         Q3 = self.returns.quantile(0.75)
         IQR = Q3 - Q1
         outliers = (self.returns < (Q1 - 1.5 * IQR)) | (self.returns > (Q3 + 1.5 * IQR))
-        st.write(f"<div class='info-box'>Nombre d'outliers détectés : {outliers.sum().sum()}</div>", unsafe_allow_html=True)
+        st.markdown(f"<div class='info-box'>Nombre d'outliers détectés : {outliers.sum().sum()}</div>", unsafe_allow_html=True)
 
     def scale_data(self):
         scaler = StandardScaler()
@@ -213,9 +213,9 @@ class ComprehensiveCryptoCommoAnalyzer:
                     min_p_value = min(result[0]['ssr_ftest'][1] for result in test_result.values())
                     if min_p_value < 0.05:
                         significant_assets.append(col)
-                        st.info(f"<div class='info-box'><strong>{col} a une relation de causalité de Granger significative avec Bitcoin (p-value={min_p_value:.4f})</strong></div>", unsafe_allow_html=True)
+                        st.markdown(f"<div class='info-box'><strong>{col} a une relation de causalité de Granger significative avec Bitcoin (p-value={min_p_value:.4f})</strong></div>", unsafe_allow_html=True)
                 except Exception as e:
-                    st.warning(f"<div class='warning-message'>Problème avec le test de Granger pour {col} : {e}</div>", unsafe_allow_html=True)
+                    st.markdown(f"<div class='warning-message'>Problème avec le test de Granger pour {col} : {e}</div>", unsafe_allow_html=True)
         
         btc_prices = self.data['BTC-USD']
         for col in self.data.columns:
@@ -223,7 +223,7 @@ class ComprehensiveCryptoCommoAnalyzer:
                 _, pvalue, _ = coint(btc_prices, self.data[col])
                 if pvalue < 0.01:
                     significant_assets.append(col)
-                    st.info(f"<div class='info-box'><strong>{col} est co-intégré avec Bitcoin (p-value={pvalue:.4f})</strong></div>", unsafe_allow_html=True)
+                    st.markdown(f"<div class='info-box'><strong>{col} est co-intégré avec Bitcoin (p-value={pvalue:.4f})</strong></div>", unsafe_allow_html=True)
         
         significant_assets = list(set(significant_assets))
         
@@ -231,8 +231,8 @@ class ComprehensiveCryptoCommoAnalyzer:
             fig = go.Figure()
             fig.add_trace(go.Scatter(x=self.data.index, y=self.data['BTC-USD'], mode='lines', name='Bitcoin (BTC)', line=dict(color=theme_colors['primary'])))
             fig.add_trace(go.Scatter(x=self.data.index, y=self.data[col], mode='lines', name=self.names[self.tickers.index(col)], line=dict(color=theme_colors['secondary'])))
-            fig.update_layout(title=f"Relation entre Bitcoin et {self.names[self.tickers.index(col)]}", 
-                              xaxis_title="Date", yaxis_title="Prix (mis à la même échelle)", 
+            fig.update_layout(title=f"Relation entre Bitcoin et {self.names[self.tickers.index(col)]}",
+                              xaxis_title="Date", yaxis_title="Prix (mis à la même échelle)",
                               autosize=False, width=800, height=400,
                               plot_bgcolor=theme_colors['background'],
                               paper_bgcolor=theme_colors['background'],
