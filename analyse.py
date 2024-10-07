@@ -4,10 +4,11 @@ import streamlit as st
 import numpy as np
 import pandas as pd
 import yfinance as yf
-import matplotlib.pyplot as plt
 from statsmodels.tsa.stattools import coint
 from tqdm import tqdm
 import datetime
+import plotly.express as px
+import plotly.graph_objects as go
 
 # Désactiver les avertissements de pandas
 import warnings
@@ -125,14 +126,14 @@ def main():
         # Calcul du z-score du prix
         zscores = zscore(S1)
         st.subheader(f"Z-score du prix de {crypto_selectionnee}")
-        fig1, ax1 = plt.subplots(figsize=(10, 5))
-        ax1.plot(zscores.index, zscores)
-        ax1.axhline(0, color='black')
-        ax1.axhline(1.0, color='red', linestyle='--')
-        ax1.axhline(-1.0, color='green', linestyle='--')
-        ax1.set_xlabel('Date')
-        ax1.set_ylabel('Z-score')
-        st.pyplot(fig1)
+
+        fig1 = go.Figure()
+        fig1.add_trace(go.Scatter(x=zscores.index, y=zscores, mode='lines', name='Z-score'))
+        fig1.add_hline(y=0, line_dash="dash", line_color="black")
+        fig1.add_hline(y=1.0, line_dash="dash", line_color="red")
+        fig1.add_hline(y=-1.0, line_dash="dash", line_color="green")
+        fig1.update_layout(title=f"Z-score du prix de {crypto_selectionnee}", xaxis_title="Date", yaxis_title="Z-score")
+        st.plotly_chart(fig1, use_container_width=True)
 
         # Calcul de l'exposant de Hurst
         h = calculer_hurst(S1.dropna())
@@ -143,24 +144,26 @@ def main():
             S1, S2, window1=window1, window2=window2, entry_z=entry_z, exit_z=exit_z)
 
         st.subheader("Rendements cumulés de la stratégie")
-        fig2, ax2 = plt.subplots(figsize=(10, 5))
-        ax2.plot(rendements_cumules.index, rendements_cumules)
-        ax2.set_xlabel('Date')
-        ax2.set_ylabel('Rendements cumulés')
-        st.pyplot(fig2)
+        fig2 = go.Figure()
+        fig2.add_trace(go.Scatter(x=rendements_cumules.index, y=rendements_cumules, mode='lines', name='Rendements cumulés'))
+        fig2.update_layout(title="Rendements cumulés de la stratégie", xaxis_title="Date", yaxis_title="Rendements cumulés")
+        st.plotly_chart(fig2, use_container_width=True)
 
         st.subheader("Positions prises")
-        st.line_chart(positions)
+        fig_positions = go.Figure()
+        fig_positions.add_trace(go.Scatter(x=positions.index, y=positions['S1'], mode='lines', name=f"Position {crypto_selectionnee}"))
+        fig_positions.add_trace(go.Scatter(x=positions.index, y=positions['S2'], mode='lines', name="Position USDC"))
+        fig_positions.update_layout(title="Positions prises", xaxis_title="Date", yaxis_title="Position")
+        st.plotly_chart(fig_positions, use_container_width=True)
 
         st.subheader("Z-score du ratio des prix")
-        fig3, ax3 = plt.subplots(figsize=(10, 5))
-        ax3.plot(zscore_series.index, zscore_series)
-        ax3.axhline(0, color='black')
-        ax3.axhline(entry_z, color='red', linestyle='--')
-        ax3.axhline(-entry_z, color='green', linestyle='--')
-        ax3.set_xlabel('Date')
-        ax3.set_ylabel('Z-score du ratio')
-        st.pyplot(fig3)
+        fig3 = go.Figure()
+        fig3.add_trace(go.Scatter(x=zscore_series.index, y=zscore_series, mode='lines', name='Z-score du ratio'))
+        fig3.add_hline(y=0, line_dash="dash", line_color="black")
+        fig3.add_hline(y=entry_z, line_dash="dash", line_color="red")
+        fig3.add_hline(y=-entry_z, line_dash="dash", line_color="green")
+        fig3.update_layout(title="Z-score du ratio des prix", xaxis_title="Date", yaxis_title="Z-score du ratio")
+        st.plotly_chart(fig3, use_container_width=True)
 
         st.success("Analyse terminée.")
 
